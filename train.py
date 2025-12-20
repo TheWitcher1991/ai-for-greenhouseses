@@ -32,8 +32,6 @@ model.to(DEVICE)
 optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
 scaler = torch.amp.GradScaler(device=DEVICE)
 
-EPOCHS = 10
-
 for epoch in range(EPOCHS):
     model.train()
     epoch_loss = 0
