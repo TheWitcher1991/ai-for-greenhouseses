@@ -9,7 +9,7 @@ CVAT_URL = "cvat.stgau.ru"
 USERNAME = "Ryabokonova.I"
 PASSWORD = 'N$W"Ch|g9R'
 
-OUTPUT_FILE = "cvat_merged_coco.json"
+OUTPUT_FILE = "annotations.json"
 OUTPUT_IMAGES_DIR = Path("images")
 OUTPUT_IMAGES_DIR.mkdir(exist_ok=True)
 
@@ -54,7 +54,8 @@ for task_id in TASK_IDS:
 
                 for img in coco.get("images", []):
                     old_file_name = img["file_name"]
-                    new_file_name = f"{image_file_counter:06d}_{old_file_name}"
+                    ext = Path(old_file_name).suffix
+                    new_file_name = f"{image_file_counter:06d}{ext}"
                     image_file_counter += 1
 
                     src_img_path = Path(tmpdir) / "images" / "default" / old_file_name
@@ -85,7 +86,6 @@ for task_id in TASK_IDS:
         print(f"Ошибка при обработке task {task_id}: {e}")
         continue 
 
-# Сохраняем результат
 with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
     json.dump(merged_coco, f, ensure_ascii=False, indent=2)
 

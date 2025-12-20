@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
 from torchvision.models.detection import maskrcnn_resnet50_fpn
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 from tqdm import tqdm
 
@@ -12,22 +13,18 @@ dataset = CocoSegmentationDataset(images_dir="data/images", annotation_file="dat
 
 loader = DataLoader(dataset, batch_size=2, shuffle=True, collate_fn=lambda x: tuple(zip(*x)))
 
-model = maskrcnn_resnet50_fpn(pretrained=True)
+model = maskrcnn_resnet50_fpn(weights="DEFAULT")
 
-# 2 класса + фон
-num_classes = 3
-
+num_classes = dataset.num_classes
 in_features = model.roi_heads.box_predictor.cls_score.in_features
-model.roi_heads.box_predictor = torch.nn.Linear(in_features, num_classes)
+model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
 in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
-hidden = 256
-model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, hidden, num_classes)
+model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, 256, num_classes)
 
 model.to(DEVICE)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
-
 EPOCHS = 10
 
 for epoch in range(EPOCHS):
@@ -38,8 +35,12 @@ for epoch in range(EPOCHS):
         images = [img.to(DEVICE) for img in images]
         targets = [{k: v.to(DEVICE) for k, v in t.items()} for t in targets]
 
-        loss_dict = model(images, targets)
-        loss = sum(loss for loss in loss_dict.values())
+        try:
+            loss_dict = model(images, targets)
+            loss = sum(loss for loss in loss_dict.values())
+        except Exception as e:
+            print(f"Ошибка при обработке батча: {e}")
+            continue
 
         optimizer.zero_grad()
         loss.backward()
