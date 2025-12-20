@@ -1,0 +1,25 @@
+ .idea
+/.idea/
+**/.idea/
+backups
+.DS_Store
+.git
+*.egg-info/
+.installed.cfg
+*.egg
+
+build
+dist
+db.sqlite3
+
+venv
+
+__pycache__/
+*/__pycache__/
+*.py[cod]
+.pyc
+*.pyc
+
+.vscode/*
+
+venv/
