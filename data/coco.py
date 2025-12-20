@@ -1,7 +1,7 @@
 import json
 import os
 
-PATH_TO_JSON = "cvat_merged_coco.json"
+PATH_TO_JSON = "annotations.json"
 IMAGES_DIR = "images/"
 
 with open(PATH_TO_JSON, "r", encoding="utf-8") as f:

@@ -8,7 +8,7 @@ from dataset import CocoSegmentationDataset
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-dataset = CocoSegmentationDataset(images_dir="data/images", annotation_file="data/cvat_merged_coco.json")
+dataset = CocoSegmentationDataset(images_dir="data/images", annotation_file="data/annotations.json")
 
 loader = DataLoader(dataset, batch_size=2, shuffle=True, collate_fn=lambda x: tuple(zip(*x)))
 

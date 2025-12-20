@@ -1,6 +1,6 @@
 from dataset import CocoSegmentationDataset
 
-ds = CocoSegmentationDataset("data/images", "data/cvat_merged_coco.json")
+ds = CocoSegmentationDataset("data/images", "data/annotations.json")
 
 for i in range(len(ds)):
     try:
