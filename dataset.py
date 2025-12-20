@@ -1,4 +1,5 @@
 import os
+
 import cv2
 import numpy as np
 import torch
@@ -17,12 +18,28 @@ class CocoSegmentationDataset(Dataset):
             for img_id in self.coco.imgs
             if any(self.coco.annToMask(ann).sum() > 0 for ann in self.coco.loadAnns(self.coco.getAnnIds(imgIds=img_id)))
         ]
+
         if len(self.image_ids) == 0:
             raise ValueError("Нет изображений с масками!")
 
         category_ids = sorted([c["id"] for c in self.coco.cats.values()])
         self.category_id_map = {cid: i + 1 for i, cid in enumerate(category_ids)}
         self.num_classes = len(self.category_id_map) + 1
+
+        all_attr = []
+        for img_id in self.image_ids:
+            ann_ids = self.coco.getAnnIds(imgIds=img_id)
+            anns = self.coco.loadAnns(ann_ids)
+            for ann in anns:
+                if "attributes" in ann and ann["attributes"]:
+                    # ищем ключ, который содержит "балл"
+                    severity_keys = [k for k in ann["attributes"].keys() if "балл" in k]
+                    if severity_keys:
+                        severity_str = severity_keys[0]
+                        severity = int(severity_str.split()[0])
+                        all_attr.append(severity)
+
+        self.num_attr_classes = max(all_attr) + 1 if all_attr else 1
 
     def __len__(self):
         return len(self.image_ids)
@@ -41,15 +58,25 @@ class CocoSegmentationDataset(Dataset):
         ann_ids = self.coco.getAnnIds(imgIds=img_id)
         anns = self.coco.loadAnns(ann_ids)
 
-        boxes, labels, masks = [], [], []
+        boxes, labels, masks, attr_labels = [], [], [], []
+
         for ann in anns:
             mask = self.coco.annToMask(ann)
             if mask.sum() == 0:
                 continue
+
             x, y, w, h = ann["bbox"]
             boxes.append([x, y, x + w, y + h])
             labels.append(self.category_id_map[ann["category_id"]])
             masks.append(mask)
+
+            severity_keys = [k for k in ann.get("attributes", {}).keys() if "балл" in k]
+            if severity_keys:
+                severity_str = severity_keys[0]
+                severity = int(severity_str.split()[0])
+                attr_labels.append(severity)
+            else:
+                attr_labels.append(0)
 
         if len(boxes) == 0:
             raise ValueError(f"Пустая разметка: {path}")
@@ -57,7 +84,8 @@ class CocoSegmentationDataset(Dataset):
         target = {
             "boxes": torch.tensor(boxes, dtype=torch.float32),
             "labels": torch.tensor(labels, dtype=torch.int64),
-            "masks": torch.tensor(np.stack(masks, axis=0), dtype=torch.float32),  # float32 для MaskRCNN
+            "masks": torch.tensor(np.stack(masks, axis=0), dtype=torch.float32),
+            "attr_labels": torch.tensor(attr_labels, dtype=torch.int64),
         }
 
         if self.transforms:

@@ -1,11 +1,11 @@
 import torch
 from torch.utils.data import DataLoader
-from torchvision.models.detection import maskrcnn_resnet50_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 from tqdm import tqdm
 
 from dataset import CocoSegmentationDataset
+from maskrcnn import MaskRCNNWithAttr
 from transforms import ComposeTransforms
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -19,14 +19,13 @@ dataset = CocoSegmentationDataset(
 
 loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=lambda x: tuple(zip(*x)))
 
-model = maskrcnn_resnet50_fpn(weights="DEFAULT")
-num_classes = dataset.num_classes
+model = MaskRCNNWithAttr(num_classes=dataset.num_classes, num_attr_classes=dataset.num_attr_classes)
 
-in_features = model.roi_heads.box_predictor.cls_score.in_features
-model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+# in_features = model.roi_heads.box_predictor.cls_score.in_features
+# model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
-in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
-model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, 256, num_classes)
+# in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
+# model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, 256, num_classes)
 
 model.to(DEVICE)
 optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
