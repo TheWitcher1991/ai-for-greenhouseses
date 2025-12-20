@@ -32,7 +32,6 @@ class CocoSegmentationDataset(Dataset):
             anns = self.coco.loadAnns(ann_ids)
             for ann in anns:
                 if "attributes" in ann and ann["attributes"]:
-                    # ищем ключ, который содержит "балл"
                     severity_keys = [k for k in ann["attributes"].keys() if "балл" in k]
                     if severity_keys:
                         severity_str = severity_keys[0]
