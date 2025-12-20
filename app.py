@@ -3,7 +3,7 @@ from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import cv2
 import numpy as np
-from infer import predict  # твоя функция предсказания
+from infer import predict
 
 
 class SegmentationApp:
