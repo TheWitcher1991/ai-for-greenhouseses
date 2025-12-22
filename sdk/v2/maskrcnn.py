@@ -6,11 +6,11 @@ from torchvision.models.detection import maskrcnn_resnet50_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
-from .contracts import DetectionModelAdapter
+from sdk.contracts import DetectionModelAdapter
 
 
 class MaskRCNN(nn.Module, DetectionModelAdapter):
-    def __init__(self, num_classes: int, num_attr_classes: int, weights_path: str = None):
+    def __init__(self, num_classes: int, num_disease: int, num_severity: int, weights_path: str = None):
         super().__init__()
 
         self.model = maskrcnn_resnet50_fpn(weights="DEFAULT")
@@ -28,7 +28,8 @@ class MaskRCNN(nn.Module, DetectionModelAdapter):
         in_features_mask = self.model.roi_heads.mask_predictor.conv5_mask.in_channels
         self.model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, 256, num_classes)
 
-        self.attr_head = nn.Linear(in_features, num_attr_classes)
+        self.disease_head = nn.Linear(in_features, num_disease)
+        self.severity_head = nn.Linear(in_features, num_severity)
 
     def forward(self, images, targets=None):
         if self.training:
@@ -41,29 +42,40 @@ class MaskRCNN(nn.Module, DetectionModelAdapter):
             roi = self.model.roi_heads.box_roi_pool(features, [t["boxes"] for t in targets], images[0].shape[-2:])
             roi = self.model.roi_heads.box_head(roi)
 
-            logits = self.attr_head(roi)
-            labels = torch.cat([t["attr_labels"] for t in targets])
+            disease_logits = self.disease_head(roi)
+            severity_logits = self.severity_head(roi)
 
-            losses["loss_attr"] = nn.CrossEntropyLoss()(logits, labels)
+            disease_gt = torch.cat([t["disease"] for t in targets])
+            severity_gt = torch.cat([t["severity"] for t in targets])
+
+            loss_attr = nn.CrossEntropyLoss()(disease_logits, disease_gt) + nn.CrossEntropyLoss()(
+                severity_logits, severity_gt
+            )
+
+            losses["loss_attr"] = loss_attr
+
             return losses
 
         output = self.model(images)
         if sum(len(o["boxes"]) for o in output) == 0:
             return output
 
-        features = self.model.backbone(images)
-        if isinstance(features, torch.Tensor):
-            features = {"0": features}
+        with torch.no_grad():
+            features = self.model.backbone(images)
+            if isinstance(features, torch.Tensor):
+                features = {"0": features}
 
-        roi = self.model.roi_heads.box_roi_pool(features, [o["boxes"] for o in output], images[0].shape[-2:])
-        roi = self.model.roi_heads.box_head(roi)
+            roi = self.model.roi_heads.box_roi_pool(features, [o["boxes"] for o in output], images[0].shape[-2:])
+            roi = self.model.roi_heads.box_head(roi)
 
-        attr = self.attr_head(roi).argmax(1)
+            disease = self.disease_head(roi).argmax(1)
+            severity = self.severity_head(roi).argmax(1)
 
         idx = 0
         for o in output:
             n = len(o["boxes"])
-            o["attr_pred"] = attr[idx : idx + n]
+            o["disease"] = disease[idx : idx + n]
+            o["severity"] = severity[idx : idx + n]
             idx += n
 
         return output

@@ -1,13 +1,13 @@
 from sdk.dataset import CocoSegmentationDataset
-from sdk.ml import MLModel
+from sdk.ml import MLM
 from sdk.transforms import ComposeTransforms
 
 dataset = CocoSegmentationDataset(
     images_dir="data/images", annotation_file="data/annotations.json", transforms=ComposeTransforms()
 )
 
-ml = MLModel(dataset=dataset)
+model = MLM(dataset=dataset)
 
-ml.train()
+model.train()
 
-ml.save()
+model.save()
