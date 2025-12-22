@@ -21,20 +21,37 @@ class MaskRCNNWithAttr(nn.Module):
     def forward(self, images, targets=None):
         if self.training:
             output = self.model(images, targets)
+
             # ROI features для attr_head
-            roi_features = self.model.roi_heads.box_head(
-                self.model.roi_heads.box_roi_pool(
-                    [img for img in images], [t["boxes"] for t in targets], images[0].shape[-2:]
-                )
+            # roi_features = self.model.roi_heads.box_head(
+            #     self.model.roi_heads.box_roi_pool(
+            #         [img for img in images], [t["boxes"] for t in targets], images[0].shape[-2:]
+            #     )
+            # )
+
+            features = self.model.backbone(images)
+
+            if isinstance(features, torch.Tensor):
+                features = {"0": features}
+
+            roi_features = self.model.roi_heads.box_roi_pool(
+                features, [t["boxes"] for t in targets], images[0].shape[-2:]
             )
+            roi_features = self.model.roi_heads.box_head(roi_features)
+
             attr_logits = self.attr_head(roi_features)
             attr_labels = torch.cat([t["attr_labels"] for t in targets], dim=0).to(attr_logits.device)
             attr_loss = nn.CrossEntropyLoss()(attr_logits, attr_labels)
+
             # объединяем с основной loss
             loss = sum(loss for loss in output.values()) + attr_loss
             return {"loss": loss}
         else:
             output = self.model(images)
+
+            if sum(len(o["boxes"]) for o in output) == 0:
+                return output
+
             # вычисление attr_pred
             with torch.no_grad():
                 roi_features = self.model.roi_heads.box_head(
@@ -44,6 +61,7 @@ class MaskRCNNWithAttr(nn.Module):
                 )
                 attr_logits = self.attr_head(roi_features)
                 attr_pred = torch.argmax(attr_logits, dim=1)
+
             # добавляем предсказание в output
             for o, a in zip(output, attr_pred.split([len(b) for b in [o["boxes"] for o in output]])):
                 o["attr_pred"] = a
