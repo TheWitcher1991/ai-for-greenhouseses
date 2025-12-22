@@ -20,15 +20,12 @@ class SegmentationDatasetAdapter(
     ABC,
 ):
     num_classes: int
-    num_attr_classes: int
 
     @abstractmethod
-    def __len__(self) -> int:
-        pass
+    def __len__(self) -> int: ...
 
     @abstractmethod
-    def __getitem__(self, idx: int) -> Tuple[ImageTensor, Target]:
-        pass
+    def __getitem__(self, idx: int) -> Tuple[ImageTensor, Target]: ...
 
 
 class TransformAdapter(ABC):
@@ -37,37 +34,36 @@ class TransformAdapter(ABC):
         self,
         image: np.ndarray,
         target: Target,
-    ) -> Tuple[np.ndarray, Target]:
-        pass
+    ) -> Tuple[np.ndarray, Target]: ...
 
 
 class DetectionModelAdapter(ABC):
     @abstractmethod
-    def train(self, mode: bool = True) -> "DetectionModelAdapter":
-        pass
+    def train(self, mode: bool) -> "DetectionModelAdapter": ...
 
     @abstractmethod
-    def to(self, device: str) -> "DetectionModelAdapter":
-        pass
+    def to(self, device: str) -> "DetectionModelAdapter": ...
 
     @abstractmethod
-    def parameters(self) -> Iterable[torch.nn.Parameter]:
-        pass
+    def parameters(self) -> Iterable[torch.nn.Parameter]: ...
 
     @abstractmethod
     def forward(
         self,
         images: Images,
         targets: Optional[Targets] = None,
-    ) -> Union[LossDict, Predictions]:
-        pass
+    ) -> Union[LossDict, Predictions]: ...
 
 
 class TrainerAdapter(ABC):
     @abstractmethod
-    def train(self) -> None:
-        pass
+    def train(self) -> None: ...
 
     @abstractmethod
-    def save(self, path: str) -> None:
-        pass
+    def save(self, model_path: str, labels_path: str) -> None: ...
+
+    @abstractmethod
+    def load(self, model_path: str, labels_path: str) -> None: ...
+
+    @abstractmethod
+    def predict(self, image_path: str, score_threshold: float) -> None: ...

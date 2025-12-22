@@ -2,11 +2,11 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-from infer import predict
+from sdk.v1.ml import MLM
 
 image_path = "data/test.jpg"
 
-results = predict(image_path, score_threshold=0.5)
+results = MLM().predict(image_path)
 
 img = cv2.imread(image_path)
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)

@@ -1,4 +1,4 @@
-from re import L
+import json
 
 import cv2
 import torch
@@ -36,16 +36,18 @@ class MLM(TrainerAdapter):
                 dataset, batch_size=self.batch_size, shuffle=True, collate_fn=lambda x: tuple(zip(*x))
             )
 
+            self.object_labels = {i: name for i, name in dataset.category_id_map.items()}
+            self.object_attrs = {i: str(i) for i in range(dataset.num_attr_classes)}
+
             logger.info(
                 f"Датасет загружен: {len(dataset)} изображений, "
                 f"classes={dataset.num_classes}, attr_classes={dataset.num_attr_classes}"
             )
 
-        self.model = MaskRCNN(num_classes=dataset.num_classes or 1, num_attr_classes=dataset.num_attr_classes or 1).to(
-            self.device
-        )
+            self.model = MaskRCNN(
+                num_classes=dataset.num_classes or 1, num_attr_classes=dataset.num_attr_classes or 1
+            ).to(self.device)
 
-        if dataset:
             self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
             self.scaler = torch.amp.GradScaler(device=self.device)
 
@@ -88,43 +90,58 @@ class MLM(TrainerAdapter):
 
         logger.info("Обучение завершено")
 
-    def save(self):
-        torch.save(self.model.state_dict(), "model.pth")
-        logger.info("Модель сохранена: model.pth")
+    def save(self, model_path="model.pth", labels_path="labels.json"):
+        torch.save(self.model.state_dict(), model_path)
 
-    def load(self, path="model.pth"):
-        self.model.load_state_dict(torch.load(path, map_location=self.device))
+        labels_dict = {
+            "object_labels": self.object_labels,
+            "object_attrs": self.object_attrs,
+        }
+
+        with open(labels_path, "w", encoding="utf-8") as f:
+            json.dump(labels_dict, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"Модель сохранена: {model_path}, labels: {labels_path}")
+
+    def load(self, model_path="model.pth", labels_path="labels.json"):
+        with open(labels_path, "r", encoding="utf-8") as f:
+            labels_dict = json.load(f)
+
+        self.object_labels = labels_dict["object_labels"]
+        self.object_attrs = labels_dict["object_attrs"]
+        self.severity_labels = labels_dict["severity_labels"]
+
+        self.model = MaskRCNN(
+            num_classes=len(self.object_labels),
+            num_attr_classes=len(self.object_attrs),
+        )
+
+        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
         self.model.to(self.device)
         self.model.eval()
-        logger.info(f"Модель загружена: {path}")
+
+        logger.info(f"Модель загружена: {model_path}")
 
     def predict(self, image_path, score_threshold=0.5):
         img = cv2.imread(image_path)
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        tensor = torch.tensor(img_rgb / 255.0, dtype=torch.float32).permute(2, 0, 1).unsqueeze(0).to(self.device)
+        tensor = torch.tensor(img_rgb / 255.0, dtype=torch.float32).permute(2, 0, 1)
+        tensor = tensor.unsqueeze(0).to(DEVICE)
 
-        self.model.eval()
         with torch.no_grad():
             output = self.model(tensor)[0]
 
         results = []
-        for i in range(len(output["boxes"])):
-            score = float(output["scores"][i])
+        for score, label, mask in zip(output["scores"], output["labels"], output["masks"]):
             if score < score_threshold:
                 continue
 
-            obj_label = self.object_labels.get(int(output["labels"][i]), "Unknown")
-            disease = self.disease_labels.get(int(output["disease_pred"][i]), "Unknown")
-            severity = int(output["severity_pred"][i])
-
             results.append(
                 {
-                    "object": obj_label,
-                    "disease": disease,
-                    "severity": severity,
-                    "score": score,
-                    "box": output["boxes"][i].cpu().numpy(),
-                    "mask": output["masks"][i, 0].cpu().numpy(),
+                    "label": int(label),
+                    "score": float(score),
+                    "confidence_percent": float(score.item() * 100),
+                    "mask": mask[0].cpu().numpy(),
                 }
             )
 

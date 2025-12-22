@@ -7,19 +7,23 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
 from sdk.contracts import DetectionModelAdapter
+from sdk.logger import logger
 
 
 class MaskRCNN(nn.Module, DetectionModelAdapter):
     def __init__(self, num_classes: int, num_attr_classes: int, weights_path: str = None):
         super().__init__()
 
-        self.model = maskrcnn_resnet50_fpn(weights="DEFAULT")
+        logger.info(f"Инициализация MaskRCNN | " f"num_classes={num_classes}, num_attr_classes={num_attr_classes}")
 
         if weights_path and Path(weights_path).exists():
+            logger.info(f"Загрузка весов из файла: {weights_path}")
             self.model = maskrcnn_resnet50_fpn(weights=None)
             checkpoint = torch.load(weights_path)
             self.model.load_state_dict(checkpoint)
+            logger.info("Веса успешно загружены")
         else:
+            logger.info("Используются DEFAULT веса torchvision")
             self.model = maskrcnn_resnet50_fpn(weights="DEFAULT")
 
         in_features = self.model.roi_heads.box_predictor.cls_score.in_features
@@ -29,10 +33,15 @@ class MaskRCNN(nn.Module, DetectionModelAdapter):
         self.model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, 256, num_classes)
 
         self.attr_head = nn.Linear(in_features, num_attr_classes)
+        self.attr_loss = nn.CrossEntropyLoss()
 
     def forward(self, images, targets=None):
         if self.training:
+            logger.info(f"Forward(train) | batch_size={len(images)}")
+
             losses = self.model(images, targets)
+
+            logger.info("Base losses: " + ", ".join(f"{k}={v.item():.4f}" for k, v in losses.items()))
 
             features = self.model.backbone(images)
             if isinstance(features, torch.Tensor):
@@ -44,11 +53,22 @@ class MaskRCNN(nn.Module, DetectionModelAdapter):
             logits = self.attr_head(roi)
             labels = torch.cat([t["attr_labels"] for t in targets])
 
-            losses["loss_attr"] = nn.CrossEntropyLoss()(logits, labels)
+            loss_attr = self.attr_loss(logits, labels)
+            losses["loss_attr"] = loss_attr
+
+            logger.info(f"loss_attr={loss_attr.item():.4f}")
+
             return losses
 
+        logger.info(f"Forward(infer) | batch_size={len(images)}")
+
         output = self.model(images)
-        if sum(len(o["boxes"]) for o in output) == 0:
+
+        total_boxes = sum(len(o["boxes"]) for o in output)
+        logger.info(f"Detected objects: {total_boxes}")
+
+        if total_boxes == 0:
+            logger.warning("Объекты не найдены")
             return output
 
         features = self.model.backbone(images)
@@ -65,5 +85,7 @@ class MaskRCNN(nn.Module, DetectionModelAdapter):
             n = len(o["boxes"])
             o["attr_pred"] = attr[idx : idx + n]
             idx += n
+
+        logger.info("Attribute prediction добавлен в output")
 
         return output

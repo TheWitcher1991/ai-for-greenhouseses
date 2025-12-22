@@ -1,5 +1,6 @@
 from re import L
 
+import cv2
 import torch
 from torch.utils.data import DataLoader
 
@@ -45,3 +46,36 @@ class MLM(MLMv1):
 
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
         self.scaler = torch.amp.GradScaler(device=self.device)
+
+    def predict(self, image_path, score_threshold=0.5):
+        img = cv2.imread(image_path)
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        tensor = torch.tensor(img_rgb / 255.0, dtype=torch.float32).permute(2, 0, 1).unsqueeze(0).to(self.device)
+
+        self.model.eval()
+        with torch.no_grad():
+            output = self.model(tensor)[0]
+
+        results = []
+        for i in range(len(output["boxes"])):
+            score = float(output["scores"][i])
+            if score < score_threshold:
+                continue
+
+            obj_label = self.object_labels.get(int(output["labels"][i]), "Unknown")
+            disease = self.disease_labels.get(int(output["disease_pred"][i]), "Unknown")
+            severity = int(output["severity_pred"][i])
+
+            results.append(
+                {
+                    "object": obj_label,
+                    "disease": disease,
+                    "severity": severity,
+                    "score": score,
+                    "box": output["boxes"][i].cpu().numpy(),
+                    "confidence_percent": float(score.item() * 100),
+                    "mask": output["masks"][i, 0].cpu().numpy(),
+                }
+            )
+
+        return results
