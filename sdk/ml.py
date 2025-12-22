@@ -4,14 +4,15 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from sdk.dataset import CocoSegmentationDataset
-from sdk.logger import logger
-from sdk.maskrcnn import MaskRCNN
+from .contracts import TrainerAdapter
+from .dataset import CocoSegmentationDataset
+from .logger import logger
+from .maskrcnn import MaskRCNN
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-class MLModel:
+class MLM(TrainerAdapter):
     def __init__(
         self,
         dataset: CocoSegmentationDataset,
@@ -41,7 +42,7 @@ class MLModel:
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
         self.scaler = torch.amp.GradScaler(device=self.device)
 
-    def train(self) -> None:
+    def train(self):
         logger.info("Начало обучения")
 
         for epoch in range(self.epochs):
@@ -80,6 +81,6 @@ class MLModel:
 
         logger.info("Обучение завершено")
 
-    def save(self) -> None:
+    def save(self):
         torch.save(self.model.state_dict(), "model.pth")
         logger.info("Модель сохранена: model.pth")

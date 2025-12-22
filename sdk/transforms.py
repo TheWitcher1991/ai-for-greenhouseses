@@ -1,8 +1,10 @@
 import numpy as np
 import torch
 
+from .contracts import TransformAdapter
 
-class ComposeTransforms:
+
+class ComposeTransforms(TransformAdapter):
     def __call__(self, image, target):
         if np.random.rand() > 0.5:
             image = np.fliplr(image).copy()

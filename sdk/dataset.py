@@ -4,10 +4,11 @@ import cv2
 import numpy as np
 import torch
 from pycocotools.coco import COCO
-from torch.utils.data import Dataset
+
+from .contracts import SegmentationDatasetAdapter
 
 
-class CocoSegmentationDataset(Dataset):
+class CocoSegmentationDataset(SegmentationDatasetAdapter):
     def __init__(self, images_dir, annotation_file, transforms=None):
         self.coco = COCO(annotation_file)
         self.images_dir = images_dir

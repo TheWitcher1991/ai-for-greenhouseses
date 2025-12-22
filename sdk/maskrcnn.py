@@ -6,10 +6,20 @@ from torchvision.models.detection import maskrcnn_resnet50_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
+from .contracts import DetectionModelAdapter
 
-class MaskRCNN(nn.Module):
-    def __init__(self, num_classes: int, num_attr_classes: int, weights_path: str = None):
+
+class MaskRCNN(nn.Module, DetectionModelAdapter):
+    def __init__(
+        self, 
+        num_classes: int, 
+        num_attr_classes: int, 
+        # num_diseases: int,
+        # num_severity: int,
+        weights_path: str = None
+    ):
         super().__init__()
+
         self.model = maskrcnn_resnet50_fpn(weights="DEFAULT")
 
         if weights_path and Path(weights_path).exists():
@@ -26,6 +36,9 @@ class MaskRCNN(nn.Module):
         self.model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, 256, num_classes)
 
         self.attr_head = nn.Linear(in_features, num_attr_classes)
+
+        # self.disease_head = nn.Linear(in_features, num_diseases)
+        # self.severity_head = nn.Linear(in_features, num_severity)
 
     def forward(self, images, targets=None):
         if self.training:
