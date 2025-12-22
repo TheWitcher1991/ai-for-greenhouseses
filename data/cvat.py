@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
+
 from cvat_sdk import make_client
 
 CVAT_URL = "cvat.stgau.ru"

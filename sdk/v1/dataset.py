@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from pycocotools.coco import COCO
 
-from .contracts import SegmentationDatasetAdapter
+from sdk.contracts import SegmentationDatasetAdapter
 
 
 class CocoSegmentationDataset(SegmentationDatasetAdapter):

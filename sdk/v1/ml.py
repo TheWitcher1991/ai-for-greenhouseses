@@ -4,9 +4,10 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from .contracts import TrainerAdapter
+from sdk.contracts import TrainerAdapter
+from sdk.logger import logger
+
 from .dataset import CocoSegmentationDataset
-from .logger import logger
 from .maskrcnn import MaskRCNN
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from sdk.logger import logger
-from sdk.ml import MLM as MLMv1
+from sdk.v1.ml import MLM as MLMv1
 
 from .dataset import CocoSegmentationDataset
 from .maskrcnn import MaskRCNN
