@@ -5,7 +5,7 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
 
-class MaskRCNNWithAttr(nn.Module):
+class MaskRCNN(nn.Module):
     def __init__(self, num_classes, num_attr_classes):
         super().__init__()
         self.model = maskrcnn_resnet50_fpn(weights="DEFAULT")
@@ -20,49 +20,39 @@ class MaskRCNNWithAttr(nn.Module):
 
     def forward(self, images, targets=None):
         if self.training:
-            output = self.model(images, targets)
-
-            # ROI features для attr_head
-            # roi_features = self.model.roi_heads.box_head(
-            #     self.model.roi_heads.box_roi_pool(
-            #         [img for img in images], [t["boxes"] for t in targets], images[0].shape[-2:]
-            #     )
-            # )
+            losses = self.model(images, targets)
 
             features = self.model.backbone(images)
-
             if isinstance(features, torch.Tensor):
                 features = {"0": features}
 
-            roi_features = self.model.roi_heads.box_roi_pool(
-                features, [t["boxes"] for t in targets], images[0].shape[-2:]
-            )
-            roi_features = self.model.roi_heads.box_head(roi_features)
+            roi = self.model.roi_heads.box_roi_pool(features, [t["boxes"] for t in targets], images[0].shape[-2:])
+            roi = self.model.roi_heads.box_head(roi)
 
-            attr_logits = self.attr_head(roi_features)
-            attr_labels = torch.cat([t["attr_labels"] for t in targets], dim=0).to(attr_logits.device)
-            attr_loss = nn.CrossEntropyLoss()(attr_logits, attr_labels)
+            logits = self.attr_head(roi)
+            labels = torch.cat([t["attr_labels"] for t in targets])
 
-            # объединяем с основной loss
-            loss = sum(loss for loss in output.values()) + attr_loss
-            return {"loss": loss}
-        else:
-            output = self.model(images)
+            losses["loss_attr"] = nn.CrossEntropyLoss()(logits, labels)
+            return losses
 
-            if sum(len(o["boxes"]) for o in output) == 0:
-                return output
-
-            # вычисление attr_pred
-            with torch.no_grad():
-                roi_features = self.model.roi_heads.box_head(
-                    self.model.roi_heads.box_roi_pool(
-                        [img for img in images], [o["boxes"] for o in output], images[0].shape[-2:]
-                    )
-                )
-                attr_logits = self.attr_head(roi_features)
-                attr_pred = torch.argmax(attr_logits, dim=1)
-
-            # добавляем предсказание в output
-            for o, a in zip(output, attr_pred.split([len(b) for b in [o["boxes"] for o in output]])):
-                o["attr_pred"] = a
+        # inference
+        output = self.model(images)
+        if sum(len(o["boxes"]) for o in output) == 0:
             return output
+
+        features = self.model.backbone(images)
+        if isinstance(features, torch.Tensor):
+            features = {"0": features}
+
+        roi = self.model.roi_heads.box_roi_pool(features, [o["boxes"] for o in output], images[0].shape[-2:])
+        roi = self.model.roi_heads.box_head(roi)
+
+        attr = self.attr_head(roi).argmax(1)
+
+        idx = 0
+        for o in output:
+            n = len(o["boxes"])
+            o["attr_pred"] = attr[idx : idx + n]
+            idx += n
+
+        return output

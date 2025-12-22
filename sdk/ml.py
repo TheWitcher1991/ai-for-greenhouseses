@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from sdk.dataset import CocoSegmentationDataset
-from sdk.maskrcnn import MaskRCNNWithAttr
+from sdk.maskrcnn import MaskRCNN
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -24,14 +24,11 @@ class MLModel:
 
         self.loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, collate_fn=lambda x: tuple(zip(*x)))
 
-        self.model = MaskRCNNWithAttr(num_classes=dataset.num_classes, num_attr_classes=dataset.num_attr_classes)
+        self.model = MaskRCNN(num_classes=dataset.num_classes, num_attr_classes=dataset.num_attr_classes)
         self.model.to(self.device)
 
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
         self.scaler = torch.amp.GradScaler(device=self.device)
-
-    def instance(self) -> MaskRCNNWithAttr:
-        return self.model
 
     def train(self) -> None:
         for epoch in range(self.epochs):
