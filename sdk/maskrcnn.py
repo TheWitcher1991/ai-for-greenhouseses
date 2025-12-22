@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 from torchvision.models.detection import maskrcnn_resnet50_fpn
@@ -6,9 +8,16 @@ from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
 
 class MaskRCNN(nn.Module):
-    def __init__(self, num_classes, num_attr_classes):
+    def __init__(self, num_classes: int, num_attr_classes: int, weights_path: str = None):
         super().__init__()
         self.model = maskrcnn_resnet50_fpn(weights="DEFAULT")
+
+        if weights_path and Path(weights_path).exists():
+            self.model = maskrcnn_resnet50_fpn(weights=None)
+            checkpoint = torch.load(weights_path)
+            self.model.load_state_dict(checkpoint)
+        else:
+            self.model = maskrcnn_resnet50_fpn(weights="DEFAULT")
 
         in_features = self.model.roi_heads.box_predictor.cls_score.in_features
         self.model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
