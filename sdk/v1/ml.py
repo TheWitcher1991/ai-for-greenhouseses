@@ -109,7 +109,6 @@ class MLM(TrainerAdapter):
 
         self.object_labels = labels_dict["object_labels"]
         self.object_attrs = labels_dict["object_attrs"]
-        self.severity_labels = labels_dict["severity_labels"]
 
         self.model = MaskRCNN(
             num_classes=len(self.object_labels),
