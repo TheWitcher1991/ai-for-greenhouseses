@@ -36,7 +36,8 @@ class MLM(TrainerAdapter):
                 dataset, batch_size=self.batch_size, shuffle=True, collate_fn=lambda x: tuple(zip(*x))
             )
 
-            self.object_labels = {i: name for i, name in dataset.category_id_map.items()}
+            self.category_id_to_name_en = dataset.category_id_to_name_en
+            self.object_labels = {i: self.category_id_to_name_en[cid] for cid, i in dataset.category_id_map.items()}
             self.object_attrs = {i: str(i) for i in range(dataset.num_attr_classes)}
 
             logger.info(
@@ -59,12 +60,14 @@ class MLM(TrainerAdapter):
             self.model.train()
             epoch_loss = 0
 
-            for step, (images, targets) in enumerate(tqdm(self.loader, desc=f"Epoch {epoch + 1}/{self.epochs}")):
-                logger.info(f"Батч {step + 1} получен")
+            for step, (images, targets, _) in enumerate(tqdm(self.loader, desc=f"Epoch {epoch + 1}/{self.epochs}")):
+                logger.info(f"Батч {step + 1}/{len(self.loader)} получен")
+                logger.info(f"Количество изображений в батче: {len(images)}")
 
                 try:
                     images = [img.to(self.device) for img in images]
                     targets = [{k: v.to(self.device) for k, v in t.items()} for t in targets]
+                    logger.info(f"Пример target[0]: { {k: v.shape for k, v in targets[0].items()} }")
                 except Exception as e:
                     logger.error(f"Ошибка переноса данных на device: {e}")
                     continue
@@ -76,6 +79,7 @@ class MLM(TrainerAdapter):
                         loss = sum(losses.values())
 
                     logger.info("Losses: " + ", ".join(f"{k}={v.item():.4f}" for k, v in losses.items()))
+                    logger.info(f"Текущий суммарный loss батча: {loss.item():.4f}")
                 except Exception as e:
                     logger.error(f"Ошибка forward/backward: {e}")
                     continue
@@ -85,6 +89,7 @@ class MLM(TrainerAdapter):
                 self.scaler.update()
 
                 epoch_loss += loss.item()
+                logger.info(f"Батч {step + 1} завершен, накопленный loss эпохи: {epoch_loss:.4f}")
 
             logger.info(f"Эпоха {epoch + 1} завершена, loss={epoch_loss:.4f}")
 
@@ -135,9 +140,12 @@ class MLM(TrainerAdapter):
             if score < score_threshold:
                 continue
 
+            label_name = self.object_labels.get(int(label), str(label))
+
             results.append(
                 {
-                    "label": int(label),
+                    "label_id": int(label),
+                    "label": label_name,
                     "score": float(score),
                     "confidence_percent": float(score.item() * 100),
                     "mask": mask[0].cpu().numpy(),

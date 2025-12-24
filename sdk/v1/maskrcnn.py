@@ -14,7 +14,7 @@ class MaskRCNN(nn.Module, DetectionModelAdapter):
     def __init__(self, num_classes: int, num_attr_classes: int, weights_path: str = None):
         super().__init__()
 
-        logger.info(f"Инициализация MaskRCNN | " f"num_classes={num_classes}, num_attr_classes={num_attr_classes}")
+        logger.info(f"Инициализация MaskRCNN | " f"classes={num_classes}, attr_classes={num_attr_classes}")
 
         if weights_path and Path(weights_path).exists():
             logger.info(f"Загрузка весов из файла: {weights_path}")
@@ -51,7 +51,7 @@ class MaskRCNN(nn.Module, DetectionModelAdapter):
             roi = self.model.roi_heads.box_head(roi)
 
             logits = self.attr_head(roi)
-            labels = torch.cat([t["attr_labels"] for t in targets])
+            labels = torch.cat([t["attr_labels"].to(images[0].device) for t in targets])
 
             loss_attr = self.attr_loss(logits, labels)
             losses["loss_attr"] = loss_attr

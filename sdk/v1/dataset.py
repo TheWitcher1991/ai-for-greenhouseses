@@ -1,3 +1,4 @@
+import json
 import os
 
 import cv2
@@ -10,7 +11,13 @@ from sdk.contracts import SegmentationDatasetAdapter
 
 class CocoSegmentationDataset(SegmentationDatasetAdapter):
     def __init__(self, images_dir, annotation_file, transforms=None):
-        self.coco = COCO(annotation_file)
+        with open(annotation_file, "r", encoding="utf-8") as f:
+            coco_data = json.load(f)
+
+        self.coco = COCO.__new__(COCO)
+        self.coco.dataset = coco_data
+        self.coco.createIndex()
+
         self.images_dir = images_dir
         self.transforms = transforms
 
@@ -26,6 +33,18 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
         category_ids = sorted([c["id"] for c in self.coco.cats.values()])
         self.category_id_map = {cid: i + 1 for i, cid in enumerate(category_ids)}
         self.num_classes = len(self.category_id_map) + 1
+
+        self.category_id_to_name_en = {}
+        for cid, cat in self.coco.cats.items():
+            name = cat["name"]
+            name_en = name.lower()
+            name_en = (
+                name_en.replace(" ", "_")
+                .replace("лист,", "leaf")
+                .replace("зараженный_мучнистой_росой", "powdery_mildew")
+            )
+            name_en = name_en.replace("стебель", "stem").replace("плод", "fruit")
+            self.category_id_to_name_en[cid] = name_en
 
         all_attr = []
         for img_id in self.image_ids:
@@ -58,7 +77,7 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
         ann_ids = self.coco.getAnnIds(imgIds=img_id)
         anns = self.coco.loadAnns(ann_ids)
 
-        boxes, labels, masks, attr_labels = [], [], [], []
+        boxes, labels, labels_numeric, masks, attr_labels = [], [], [], [], []
 
         for ann in anns:
             mask = self.coco.annToMask(ann)
@@ -67,23 +86,26 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
 
             x, y, w, h = ann["bbox"]
             boxes.append([x, y, x + w, y + h])
-            labels.append(self.category_id_map[ann["category_id"]])
+
+            labels_numeric.append(self.category_id_map[ann["category_id"]])
+            labels.append(self.category_id_to_name_en[ann["category_id"]])
+
             masks.append(mask)
 
-            severity_keys = [k for k in ann.get("attributes", {}).keys() if "балл" in k]
-            if severity_keys:
-                severity_str = severity_keys[0]
-                severity = int(severity_str.split()[0])
-                attr_labels.append(severity)
-            else:
-                attr_labels.append(0)
+            attrs = ann.get("attributes", {})
+            severity = 0
+            for k in attrs.keys():
+                if "балл" in k:
+                    severity = int(k.split()[0])
+                    break
+            attr_labels.append(severity)
 
         if len(boxes) == 0:
             raise ValueError(f"Пустая разметка: {path}")
 
         target = {
             "boxes": torch.tensor(boxes, dtype=torch.float32),
-            "labels": torch.tensor(labels, dtype=torch.int64),
+            "labels": torch.tensor(labels_numeric, dtype=torch.int64),
             "masks": torch.tensor(np.stack(masks, axis=0), dtype=torch.float32),
             "attr_labels": torch.tensor(attr_labels, dtype=torch.int64),
         }
@@ -93,7 +115,7 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
 
         image = torch.tensor(image / 255.0, dtype=torch.float32).permute(2, 0, 1)
 
-        return image, target
+        return image, target, labels
 
     @staticmethod
     def imread_unicode(path: str):
