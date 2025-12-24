@@ -46,8 +46,8 @@ class MLM(TrainerAdapter):
             )
 
             self.model = MaskRCNN(
-                num_classes=dataset.num_classes or 1,
-                num_attr_classes=dataset.num_attr_classes or 1,
+                num_classes=dataset.num_classes,
+                num_attr_classes=dataset.num_attr_classes,
                 weights_path=weights_path,
             ).to(self.device)
 

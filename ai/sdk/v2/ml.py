@@ -1,9 +1,7 @@
-import json
-from re import L
-
 import cv2
 import torch
 from sdk.logger import logger
+from sdk.storage import json_storage
 from sdk.v1.ml import MLM as MLMv1
 from torch.utils.data import DataLoader
 
@@ -21,11 +19,13 @@ class MLM(MLMv1):
         epochs: int = 10,
         batch_size: int = 2,
         lr: int = 1e-4,
+        weights_path: str = None,
     ):
         self.device = device
         self.epochs = epochs
         self.batch_size = batch_size
         self.lr = lr
+        self.weights_path = weights_path
 
         logger.info(f"Устройство: {self.device}")
         logger.info(f"Эпохи={epochs}, batch_size={batch_size}, lr={lr}")
@@ -48,6 +48,7 @@ class MLM(MLMv1):
                 num_classes=dataset.num_classes,
                 num_disease=dataset.num_disease_classes,
                 num_severity=dataset.num_severity_classes,
+                weights_path=weights_path,
             ).to(self.device)
 
             self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
@@ -57,19 +58,24 @@ class MLM(MLMv1):
         torch.save(self.model.state_dict(), model_path)
 
         labels_dict = {
+            "architecture": "maskrcnn_resnet50_fpn",
+            "num_classes": len(self.object_labels),
+            "num_disease_classes": len(self.disease_labels),
+            "num_severity_classes": len(self.severity_labels),
             "object_labels": self.object_labels,
             "disease_labels": self.disease_labels,
             "severity_labels": self.severity_labels,
+            "weights_storage": "local",
+            "weights_path": self.weights_path,
         }
 
-        with open(labels_path, "w", encoding="utf-8") as f:
-            json.dump(labels_dict, f, ensure_ascii=False, indent=2)
+        json_storage.save(labels_path, labels_dict)
 
         logger.info(f"Модель сохранена: {model_path}, labels: {labels_path}")
 
     def load(self, model_path="model.pth", labels_path="labels.json"):
-        with open(labels_path, "r", encoding="utf-8") as f:
-            labels_dict = json.load(f)
+        labels_dict = json_storage.load(labels_path)
+
         self.object_labels = labels_dict["object_labels"]
         self.disease_labels = labels_dict["disease_labels"]
         self.severity_labels = labels_dict["severity_labels"]
@@ -78,6 +84,7 @@ class MLM(MLMv1):
             num_classes=len(self.object_labels),
             num_disease=len(self.disease_labels),
             num_severity=len(self.severity_labels),
+            weights_path=self.weights_path,
         )
 
         self.model.load_state_dict(torch.load(model_path, map_location=self.device))
