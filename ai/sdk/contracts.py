@@ -89,3 +89,15 @@ class DatasetValidatorAdapter(ABC):
 
     @abstractmethod
     def validate(self) -> None: ...
+
+
+class RegistryCredentials(TypedDict):
+    host: str
+    login: str
+    password: str
+
+
+class RegistryAdapter(ABC):
+
+    @abstractmethod
+    def validate(self) -> None: ...
