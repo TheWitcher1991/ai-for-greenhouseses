@@ -14,8 +14,8 @@ class CvatRegistry(RegistryAdapter):
 
     def __init__(self, credentials: RegistryCredentials) -> None:
         self.host = credentials.get("host", "cvat.stgau.ru")
-        self.output_file = "annotations.json"
-        self.output_images = Path("images")
+        self.output_file = "cvat/annotations.json"
+        self.output_images = Path("cvat/images")
         self.output_images.mkdir(exist_ok=True)
 
         self.merged_coco = {"images": [], "annotations": [], "categories": []}
