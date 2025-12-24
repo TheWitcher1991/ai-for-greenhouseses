@@ -81,3 +81,9 @@ class StorageAdapter(ABC):
 
     @abstractmethod
     def load(self, path: str) -> Any: ...
+
+
+class DatasetValidatorAdapter(ABC):
+
+    @abstractmethod
+    def validate(self) -> None: ...

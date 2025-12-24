@@ -1,5 +1,5 @@
 from sdk.transforms import ComposeTransforms
-from sdk.v1.dataset import CocoSegmentationDataset
+from sdk.v1.dataset.coco import CocoSegmentationDataset
 from sdk.v1.ml import MLM
 
 dataset = CocoSegmentationDataset(

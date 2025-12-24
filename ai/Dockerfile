@@ -27,7 +27,7 @@ RUN pip install --timeout=100 poetry -U \
 #
 FROM base AS deps
 WORKDIR $BACKEND_DIR
-COPY ./docker/scripts/pre-install.sh $BACKEND_DIR/pre-install.sh
+COPY ./deploy/pre-install.sh $BACKEND_DIR/pre-install.sh
 RUN chmod a+x $BACKEND_DIR/pre-install.sh && $BACKEND_DIR/pre-install.sh
 COPY --from=poetry $POETRY_DIR/requirements.txt $BACKEND_DIR/
 RUN pip install --no-cache-dir --timeout=100 -r requirements.txt
