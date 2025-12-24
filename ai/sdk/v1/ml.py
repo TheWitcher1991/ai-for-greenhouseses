@@ -1,12 +1,10 @@
-import json
-
 import cv2
 import torch
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-
 from sdk.contracts import TrainerAdapter
 from sdk.logger import logger
+from sdk.storage import json_storage
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from .dataset import CocoSegmentationDataset
 from .maskrcnn import MaskRCNN
@@ -22,11 +20,13 @@ class MLM(TrainerAdapter):
         epochs: int = 10,
         batch_size: int = 2,
         lr: int = 1e-4,
+        weights_path: str = None,
     ):
         self.device = device
         self.epochs = epochs
         self.batch_size = batch_size
         self.lr = lr
+        self.weights_path = weights_path
 
         logger.info(f"Устройство: {self.device}")
         logger.info(f"Эпохи={epochs}, batch_size={batch_size}, lr={lr}")
@@ -46,7 +46,9 @@ class MLM(TrainerAdapter):
             )
 
             self.model = MaskRCNN(
-                num_classes=dataset.num_classes or 1, num_attr_classes=dataset.num_attr_classes or 1
+                num_classes=dataset.num_classes or 1,
+                num_attr_classes=dataset.num_attr_classes or 1,
+                weights_path=weights_path,
             ).to(self.device)
 
             self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
@@ -99,18 +101,21 @@ class MLM(TrainerAdapter):
         torch.save(self.model.state_dict(), model_path)
 
         labels_dict = {
+            "architecture": "maskrcnn_resnet50_fpn",
+            "num_classes": len(self.object_labels),
+            "num_attr_classes": len(self.object_attrs),
             "object_labels": self.object_labels,
             "object_attrs": self.object_attrs,
+            "weights_storage": "local",
+            "weights_path": self.weights_path,
         }
 
-        with open(labels_path, "w", encoding="utf-8") as f:
-            json.dump(labels_dict, f, ensure_ascii=False, indent=2)
+        json_storage.save(labels_path, labels_dict)
 
         logger.info(f"Модель сохранена: {model_path}, labels: {labels_path}")
 
     def load(self, model_path="model.pth", labels_path="labels.json"):
-        with open(labels_path, "r", encoding="utf-8") as f:
-            labels_dict = json.load(f)
+        labels_dict = json_storage.load(labels_path)
 
         self.object_labels = labels_dict["object_labels"]
         self.object_attrs = labels_dict["object_attrs"]

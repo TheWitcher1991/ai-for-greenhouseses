@@ -2,11 +2,10 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
+from sdk.contracts import DetectionModelAdapter
 from torchvision.models.detection import maskrcnn_resnet50_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
-
-from sdk.contracts import DetectionModelAdapter
 
 
 class MaskRCNN(nn.Module, DetectionModelAdapter):

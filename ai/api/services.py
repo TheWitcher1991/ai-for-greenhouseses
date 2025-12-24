@@ -3,7 +3,6 @@ from threading import Thread
 from typing import Dict
 
 from fastapi import UploadFile
-
 from sdk.logger import logger
 from sdk.transforms import ComposeTransforms
 from sdk.v1.dataset import CocoSegmentationDataset

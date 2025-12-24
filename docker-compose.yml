@@ -1,0 +1,41 @@
+name: ai-production
+
+version: '3'
+
+services:
+  postgres:
+    extends:
+      file: ./docker-compose.base.yml
+      service: postgres
+    container_name: postgres-service
+    env_file:
+      - ./deploy/postgres/.env
+    ports:
+      - "5432:5432"
+
+  ai-service:
+    extends:
+      file: ./docker-compose.base.yml
+      service: backend
+    build:
+      context: ./ai
+      dockerfile: ./Dockerfile
+    container_name: ai-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - /bin/sh
+      - -c
+      - ./train.sh
+    environment:
+      ENV_MODE: production
+
+
+networks:
+  backend:
+    driver: bridge
+
+
+volumes:
+  postgres_data:

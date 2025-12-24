@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from enum import StrEnum, auto
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -13,6 +14,11 @@ Targets = List[Target]
 
 LossDict = Dict[str, torch.Tensor]
 Predictions = List[Dict[str, torch.Tensor]]
+
+
+class StorageType(StrEnum):
+    json = auto()
+    pg = auto()
 
 
 class SegmentationDatasetAdapter(
@@ -67,3 +73,11 @@ class TrainerAdapter(ABC):
 
     @abstractmethod
     def predict(self, image_path: str, score_threshold: float) -> None: ...
+
+
+class StorageAdapter(ABC):
+    @abstractmethod
+    def save(self, path: str, state_dict: Dict) -> None: ...
+
+    @abstractmethod
+    def load(self, path: str) -> Any: ...

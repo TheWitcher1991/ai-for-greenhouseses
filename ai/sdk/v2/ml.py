@@ -3,10 +3,9 @@ from re import L
 
 import cv2
 import torch
-from torch.utils.data import DataLoader
-
 from sdk.logger import logger
 from sdk.v1.ml import MLM as MLMv1
+from torch.utils.data import DataLoader
 
 from .dataset import CocoSegmentationDataset
 from .maskrcnn import MaskRCNN

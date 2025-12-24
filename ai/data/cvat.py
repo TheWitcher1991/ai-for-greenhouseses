@@ -43,7 +43,7 @@ for task_id in TASK_IDS:
                         coco = json.load(f)
                 except Exception as e:
                     print(f"Ошибка при чтении аннотаций для task {task_id}: {e}")
-                    continue 
+                    continue
 
                 for cat in coco.get("categories", []):
                     old_id = cat["id"]
@@ -66,7 +66,7 @@ for task_id in TASK_IDS:
                         shutil.copy(src_img_path, dst_img_path)
                     except Exception as e:
                         print(f"Не удалось скопировать изображение {old_file_name}: {e}")
-                        continue 
+                        continue
 
                     img["id"] += image_id_offset
                     img["file_name"] = new_file_name
@@ -85,7 +85,7 @@ for task_id in TASK_IDS:
 
     except Exception as e:
         print(f"Ошибка при обработке task {task_id}: {e}")
-        continue 
+        continue
 
 with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
     json.dump(merged_coco, f, ensure_ascii=False, indent=2)

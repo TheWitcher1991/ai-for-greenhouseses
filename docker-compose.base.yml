@@ -1,0 +1,34 @@
+name: ai-base
+
+version: '3'
+
+services:
+  postgres:
+    image: ${IMAGE_NAME_POSTGRES}:${IMAGE_TAG_POSTGRES}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    container_name: backend-service
+    networks:
+      - backend
+    restart: always
+
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+
+
+volumes:
+  postgres_data:
