@@ -1,6 +1,6 @@
 import cv2
 import torch
-from sdk.contracts import TrainerAdapter
+from sdk.contracts import DetectionPrediction, DetectionPredictions, TrainerAdapter
 from sdk.logger import logger
 from sdk.storage import json_storage
 from torch.utils.data import DataLoader
@@ -140,21 +140,21 @@ class MLM(TrainerAdapter):
         with torch.no_grad():
             output = self.model(tensor)[0]
 
-        results = []
+        results: DetectionPredictions = []
         for score, label, mask in zip(output["scores"], output["labels"], output["masks"]):
             if score < score_threshold:
                 continue
 
             label_name = self.object_labels.get(int(label), str(label))
 
-            results.append(
-                {
-                    "label_id": int(label),
-                    "label": label_name,
-                    "score": float(score),
-                    "confidence_percent": float(score.item() * 100),
-                    "mask": mask[0].cpu().numpy(),
-                }
-            )
+            predict: DetectionPrediction = {
+                "label_id": int(label),
+                "label": label_name,
+                "score": float(score),
+                "confidence_percent": float(score.item() * 100),
+                "mask": mask[0].cpu().numpy(),
+            }
+
+            results.append(predict)
 
         return results

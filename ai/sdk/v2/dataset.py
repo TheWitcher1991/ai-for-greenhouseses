@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import torch
 from pycocotools.coco import COCO
-from sdk.contracts import SegmentationDatasetAdapter
+from sdk.contracts import DetectionTarget, SegmentationDatasetAdapter
 
 
 class CocoSegmentationDataset(SegmentationDatasetAdapter):
@@ -90,7 +90,7 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
         if len(boxes) == 0:
             raise ValueError(f"Пустая разметка: {path}")
 
-        target = {
+        target: DetectionTarget = {
             "boxes": torch.tensor(boxes, dtype=torch.float32),
             "labels": torch.tensor(labels, dtype=torch.int64),
             "masks": torch.tensor(np.stack(masks), dtype=torch.float32),

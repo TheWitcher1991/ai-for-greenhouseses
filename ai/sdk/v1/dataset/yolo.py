@@ -3,7 +3,7 @@ import os
 import cv2
 import numpy as np
 import torch
-from sdk.contracts import SegmentationDatasetAdapter
+from sdk.contracts import DetectionTarget, SegmentationDatasetAdapter
 
 
 class YoloDetectionDataset(SegmentationDatasetAdapter):
@@ -66,7 +66,7 @@ class YoloDetectionDataset(SegmentationDatasetAdapter):
 
                 attr_labels.append(0)
 
-        target = {
+        target: DetectionTarget = {
             "boxes": torch.tensor(boxes, dtype=torch.float32),
             "labels": torch.tensor(labels, dtype=torch.int64),
             "masks": torch.tensor(np.stack(masks), dtype=torch.float32),

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import StrEnum, auto
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, TypedDict, Union
 
 import numpy as np
 import torch
@@ -9,11 +9,13 @@ from torch.utils.data import Dataset
 ImageTensor = torch.Tensor
 Images = List[ImageTensor]
 
-Target = Dict[str, torch.Tensor]
-Targets = List[Target]
-
 LossDict = Dict[str, torch.Tensor]
-Predictions = List[Dict[str, torch.Tensor]]
+
+DetectionTarget = Dict[str, torch.Tensor]
+DetectionTargets = List[DetectionTarget]
+
+DetectionPrediction = Dict[str, torch.Tensor]
+DetectionPredictions = List[DetectionPrediction]
 
 
 class StorageType(StrEnum):
@@ -22,7 +24,7 @@ class StorageType(StrEnum):
 
 
 class SegmentationDatasetAdapter(
-    Dataset[Tuple[ImageTensor, Target]],
+    Dataset[Tuple[ImageTensor, DetectionTarget]],
     ABC,
 ):
     num_classes: int
@@ -31,7 +33,7 @@ class SegmentationDatasetAdapter(
     def __len__(self) -> int: ...
 
     @abstractmethod
-    def __getitem__(self, idx: int) -> Tuple[ImageTensor, Target]: ...
+    def __getitem__(self, idx: int) -> Tuple[ImageTensor, DetectionPrediction]: ...
 
 
 class TransformAdapter(ABC):
@@ -39,8 +41,8 @@ class TransformAdapter(ABC):
     def __call__(
         self,
         image: np.ndarray,
-        target: Target,
-    ) -> Tuple[np.ndarray, Target]: ...
+        target: DetectionTarget,
+    ) -> Tuple[np.ndarray, DetectionTarget]: ...
 
 
 class DetectionModelAdapter(ABC):
@@ -57,8 +59,8 @@ class DetectionModelAdapter(ABC):
     def forward(
         self,
         images: Images,
-        targets: Optional[Targets] = None,
-    ) -> Union[LossDict, Predictions]: ...
+        targets: Optional[DetectionTargets] = None,
+    ) -> Union[LossDict, DetectionPredictions]: ...
 
 
 class TrainerAdapter(ABC):

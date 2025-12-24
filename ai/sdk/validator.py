@@ -27,6 +27,12 @@ class DatasetValidator(DatasetValidatorAdapter):
         if not hasattr(self.dataset, "num_attr_classes") or self.dataset.num_attr_classes < 1:
             raise DatasetValidationError("num_attr_classes некорректен")
 
+        if not hasattr(self.dataset, "num_disease_classes") or self.dataset.num_disease_classes < 1:
+            raise DatasetValidationError("num_disease_classes некорректен")
+
+        if not hasattr(self.dataset, "num_severity_classes") or self.dataset.num_severity_classes < 1:
+            raise DatasetValidationError("num_severity_classes некорректен")
+
         if not hasattr(self.dataset, "class_names"):
             raise DatasetValidationError("class_names отсутствуют")
 

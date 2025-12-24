@@ -1,5 +1,6 @@
 import cv2
 import torch
+from sdk.contracts import DetectionPrediction, DetectionPredictions
 from sdk.logger import logger
 from sdk.storage import json_storage
 from sdk.v1.ml import MLM as MLMv1
@@ -102,9 +103,8 @@ class MLM(MLMv1):
         with torch.no_grad():
             output = self.model(tensor)[0]
 
-        results = []
+        results: DetectionPredictions = []
         for idx, (score, label, mask) in enumerate(zip(output["scores"], output["labels"], output["masks"])):
-            score = float(output["scores"][i])
             if score < score_threshold:
                 continue
 
@@ -115,14 +115,14 @@ class MLM(MLMv1):
             disease_idx = output["disease_pred"][idx].item()
             severity_idx = output["severity_pred"][idx].item()
 
-            results.append(
-                {
-                    "label": self.object_labels.get(label.item(), str(label.item())),
-                    "disease": self.disease_labels.get(disease_idx, str(disease_idx)),
-                    "severity": self.severity_labels.get(severity_idx, str(severity_idx)),
-                    "confidence_percent": float(score.item() * 100),
-                    "mask": mask[0].cpu().numpy(),
-                }
-            )
+            predict: DetectionPrediction = {
+                "label": self.object_labels.get(label.item(), str(label.item())),
+                "disease": self.disease_labels.get(disease_idx, str(disease_idx)),
+                "severity": self.severity_labels.get(severity_idx, str(severity_idx)),
+                "confidence_percent": float(score.item() * 100),
+                "mask": mask[0].cpu().numpy(),
+            }
+
+            results.append(predict)
 
         return results
