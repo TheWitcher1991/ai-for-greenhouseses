@@ -1,12 +1,11 @@
 import cv2
 import torch
-from sdk.contracts import DetectionPrediction, DetectionPredictions
+from sdk.contracts import DetectionPrediction, DetectionPredictions, SegmentationDatasetAdapter
 from sdk.logger import logger
 from sdk.storage import json_storage
 from sdk.v1.ml import MLM as MLMv1
 from torch.utils.data import DataLoader
 
-from .dataset import CocoSegmentationDataset
 from .maskrcnn import MaskRCNN
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -15,7 +14,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 class MLM(MLMv1):
     def __init__(
         self,
-        dataset: CocoSegmentationDataset = None,
+        dataset: SegmentationDatasetAdapter = None,
         device: str = DEVICE,
         epochs: int = 10,
         batch_size: int = 2,

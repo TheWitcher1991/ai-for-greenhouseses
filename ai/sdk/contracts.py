@@ -68,7 +68,7 @@ class TrainerAdapter(ABC):
     def train(self) -> None: ...
 
     @abstractmethod
-    def save(self, model_path: str, labels_path: str) -> None: ...
+    def save(self, model_path: str, labels_path: str, metrics_path: str) -> None: ...
 
     @abstractmethod
     def load(self, model_path: str, labels_path: str) -> None: ...
@@ -91,6 +91,10 @@ class DatasetValidatorAdapter(ABC):
     def validate(self, *args, **kwargs) -> None: ...
 
 
+class MetricResult(Dict[str, float]):
+    pass
+
+
 class RegistryCredentials(TypedDict):
     host: str
     login: str
@@ -107,3 +111,16 @@ class RegistryAdapter(ABC):
 
     @abstractmethod
     def save_annotations(self) -> None: ...
+
+
+class MetricAdapter(ABC):
+    name: str
+
+    @abstractmethod
+    def reset(self) -> None: ...
+
+    @abstractmethod
+    def update(self, preds: Any, targets: Any) -> None: ...
+
+    @abstractmethod
+    def compute(self) -> Dict: ...

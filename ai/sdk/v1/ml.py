@@ -1,12 +1,12 @@
 import cv2
 import torch
-from sdk.contracts import DetectionPrediction, DetectionPredictions, TrainerAdapter
+from sdk.contracts import DetectionPrediction, DetectionPredictions, SegmentationDatasetAdapter, TrainerAdapter
 from sdk.logger import logger
+from sdk.registry.metrics import MetricsRegistry
 from sdk.storage import json_storage
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from .dataset import CocoSegmentationDataset
 from .maskrcnn import MaskRCNN
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -15,7 +15,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 class MLM(TrainerAdapter):
     def __init__(
         self,
-        dataset: CocoSegmentationDataset = None,
+        dataset: SegmentationDatasetAdapter = None,
         device: str = DEVICE,
         epochs: int = 10,
         batch_size: int = 2,
@@ -27,6 +27,8 @@ class MLM(TrainerAdapter):
         self.batch_size = batch_size
         self.lr = lr
         self.weights_path = weights_path
+
+        self.metrics = MetricsRegistry()
 
         logger.info(f"Устройство: {self.device}")
         logger.info(f"Эпохи={epochs}, batch_size={batch_size}, lr={lr}")
@@ -62,6 +64,8 @@ class MLM(TrainerAdapter):
             self.model.train()
             epoch_loss = 0
 
+            self.metrics.reset()
+
             for step, (images, targets, _) in enumerate(tqdm(self.loader, desc=f"Epoch {epoch + 1}/{self.epochs}")):
                 logger.info(f"Батч {step + 1}/{len(self.loader)} получен")
                 logger.info(f"Количество изображений в батче: {len(images)}")
@@ -91,13 +95,20 @@ class MLM(TrainerAdapter):
                 self.scaler.update()
 
                 epoch_loss += loss.item()
+
+                with torch.no_grad():
+                    preds = self.model(images)
+                    self.metrics.update(preds, targets)
+
                 logger.info(f"Батч {step + 1} завершен, накопленный loss эпохи: {epoch_loss:.4f}")
 
-            logger.info(f"Эпоха {epoch + 1} завершена, loss={epoch_loss:.4f}")
+            epoch_metrics = self.metrics.compute()
+
+            logger.info(f"Эпоха {epoch + 1} завершена, loss={epoch_loss:.4f}, метрики={epoch_metrics}")
 
         logger.info("Обучение завершено")
 
-    def save(self, model_path="model.pth", labels_path="labels.json"):
+    def save(self, model_path="model.pth", labels_path="labels.json", metrics_path="metrics.json"):
         torch.save(self.model.state_dict(), model_path)
 
         labels_dict = {
@@ -111,6 +122,8 @@ class MLM(TrainerAdapter):
         }
 
         json_storage.save(labels_path, labels_dict)
+
+        json_storage.save(metrics_path, self.metrics.all())
 
         logger.info(f"Модель сохранена: {model_path}, labels: {labels_path}")
 

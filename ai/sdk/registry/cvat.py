@@ -3,7 +3,6 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import List, TypedDict
 
 from cvat_sdk import make_client
 from sdk.contracts import RegistryAdapter, RegistryCredentials
@@ -58,16 +57,16 @@ class CvatRegistry(RegistryAdapter):
                     for cat in coco.get("categories", []):
                         old_id = cat["id"]
                         if old_id not in self.category_map:
-                            cat["id"] = category_id_counter
-                            self.category_map[old_id] = category_id_counter
-                            category_id_counter += 1
+                            cat["id"] = self.category_id_counter
+                            self.category_map[old_id] = self.category_id_counter
+                            self.category_id_counter += 1
                             self.merged_coco["categories"].append(cat)
 
                     for img in coco.get("images", []):
                         old_file_name = img["file_name"]
                         ext = Path(old_file_name).suffix
-                        new_file_name = f"{image_file_counter:06d}{ext}"
-                        image_file_counter += 1
+                        new_file_name = f"{self.image_file_counter:06d}{ext}"
+                        self.image_file_counter += 1
 
                         src_img_path = Path(tmpdir) / "images" / "default" / old_file_name
                         dst_img_path = self.output_images / new_file_name
@@ -78,20 +77,21 @@ class CvatRegistry(RegistryAdapter):
                             logger.info(f"Не удалось скопировать изображение {old_file_name}: {e}")
                             continue
 
-                        img["id"] += image_id_offset
+                        img["id"] += self.image_id_offset
                         img["file_name"] = new_file_name
                         self.merged_coco["images"].append(img)
 
                     for ann in coco.get("annotations", []):
-                        ann["id"] += annotation_id_offset
-                        ann["image_id"] += image_id_offset
+                        ann["id"] += self.annotation_id_offset
+                        ann["image_id"] += self.image_id_offset
                         ann["category_id"] = self.category_map.get(ann["category_id"], ann["category_id"])
                         self.merged_coco["annotations"].append(ann)
 
                     if self.merged_coco["images"]:
-                        image_id_offset = max([img["id"] for img in self.merged_coco["images"]]) + 1
+                        self.image_id_offset = max(img["id"] for img in self.merged_coco["images"]) + 1
+
                     if self.merged_coco["annotations"]:
-                        annotation_id_offset = max([ann["id"] for ann in self.merged_coco["annotations"]]) + 1
+                        self.annotation_id_offset = max(ann["id"] for ann in self.merged_coco["annotations"]) + 1
 
         with open(self.output_file, "w", encoding="utf-8") as f:
             json.dump(self.merged_coco, f, ensure_ascii=False, indent=2)
