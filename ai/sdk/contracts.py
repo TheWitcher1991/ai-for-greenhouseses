@@ -88,7 +88,7 @@ class StorageAdapter(ABC):
 class DatasetValidatorAdapter(ABC):
 
     @abstractmethod
-    def validate(self) -> None: ...
+    def validate(self, *args, **kwargs) -> None: ...
 
 
 class RegistryCredentials(TypedDict):
@@ -100,4 +100,10 @@ class RegistryCredentials(TypedDict):
 class RegistryAdapter(ABC):
 
     @abstractmethod
-    def validate(self) -> None: ...
+    def find_annotations(self) -> List[TypedDict]: ...
+
+    @abstractmethod
+    def find_annotation(self, annotation_id: int) -> TypedDict: ...
+
+    @abstractmethod
+    def save_annotations(self) -> None: ...

@@ -27,10 +27,10 @@ class CvatRegistry(RegistryAdapter):
 
         self.client = make_client(host=self.host, credentials=(credentials.login, credentials.password))
 
-    def find_annotations(self) -> List[TypedDict]:
+    def find_annotations(self):
         return self.client.tasks.list()
 
-    def find_annotation(self, annotation_id: int) -> TypedDict:
+    def find_annotation(self, annotation_id: int):
         return self.client.tasks.retrieve(annotation_id)
 
     def save_annotations(self):
