@@ -29,8 +29,8 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
         if len(self.image_ids) == 0:
             raise ValueError("Нет изображений с масками!")
 
-        category_ids = sorted([c["id"] for c in self.coco.cats.values()])
-        self.category_id_map = {cid: i + 1 for i, cid in enumerate(category_ids)}
+        categories = self.coco.loadCats(self.coco.getCatIds())
+        self.category_id_map = {c["id"]: i + 1 for i, c in enumerate(categories)}
         self.num_classes = len(self.category_id_map) + 1
 
         self.category_id_to_name_en = {}

@@ -1,4 +1,3 @@
-import json
 import os
 
 import cv2
@@ -9,14 +8,12 @@ from sdk.contracts import DetectionTarget, SegmentationDatasetAdapter
 
 
 class CocoSegmentationDataset(SegmentationDatasetAdapter):
+    """
+    :TODO: Еще в процессе разработки
+    """
+    
     def __init__(self, images_dir, annotation_file, transforms=None):
-        with open(annotation_file, "r", encoding="utf-8") as f:
-            coco_data = json.load(f)
-
-        self.coco = COCO.__new__(COCO)
-        self.coco.dataset = coco_data
-        self.coco.createIndex()
-
+        self.coco = COCO(annotation_file)
         self.images_dir = images_dir
         self.transforms = transforms
 
@@ -29,16 +26,9 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
         if len(self.image_ids) == 0:
             raise ValueError("Нет изображений с масками!")
 
-        categories = self.coco.loadCats(self.coco.getCatIds())
-        self.category_id_map = {c["id"]: i + 1 for i, c in enumerate(categories)}
-        self.class_names = {i + 1: c["name"] for i, c in enumerate(categories)}
+        category_ids = sorted([c["id"] for c in self.coco.cats.values()])
+        self.category_id_map = {cid: i + 1 for i, cid in enumerate(category_ids)}
         self.num_classes = len(self.category_id_map) + 1
-
-        disease_values = set()
-
-        for ann in self.coco.loadAnns(self.coco.getAnnIds()):
-            attrs = ann.get("attributes", {})
-            disease_values.add(1 if "disease" in attrs else 0)
 
         self.max_severity = 0
         for ann in self.coco.loadAnns(self.coco.getAnnIds()):
@@ -46,7 +36,6 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
             self.max_severity = max(self.max_severity, int(sev))
 
         self.num_severity_classes = self.max_severity + 1
-        self.num_disease_classes = len(disease_values)
 
     def __len__(self):
         return len(self.image_ids)
@@ -65,7 +54,7 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
         ann_ids = self.coco.getAnnIds(imgIds=img_id)
         anns = self.coco.loadAnns(ann_ids)
 
-        boxes, labels, masks, severity, disease = [], [], [], [], []
+        boxes, labels, masks, severity = [], [], [], []
 
         for ann in anns:
             mask = self.coco.annToMask(ann)
@@ -74,13 +63,14 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
 
             x, y, w, h = ann["bbox"]
             boxes.append([x, y, x + w, y + h])
-
+            
             labels.append(self.category_id_map[ann["category_id"]])
 
             attrs = ann.get("attributes", {})
-            
-            disease.append(1 if "Disease" in attrs else 0)
-            severity.append(int(attrs.get("severity", 0)))
+            if "severity" in attrs:
+                severity.append(int(attrs["severity"]))
+            else:
+                severity.append(0)
 
             masks.append(mask)
 

@@ -12,6 +12,10 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class MLM(MLMv1):
+    """
+    :TODO: Еще в процессе разработки
+    """    
+    
     def __init__(
         self,
         dataset: SegmentationDatasetAdapter = None,
@@ -36,18 +40,28 @@ class MLM(MLMv1):
             )
 
             self.object_labels = {i: name for i, name in dataset.category_id_map.items()}
-            self.disease_labels = {0: "healthy", 1: "powdery"}
+            self.object_labels = dataset.id_to_name
             self.severity_labels = {i: str(i) for i in range(dataset.num_attr_classes)}
 
             logger.info(
                 f"Датасет загружен: {len(dataset)} изображений, "
                 f"classes={dataset.num_classes}, num_disease_classes={dataset.num_disease_classes}, num_severity_classes={dataset.num_severity_classes}"
             )
+            
+            diseases_cfg = json_storage.load("diseases.json")["diseases"]
+            
+            disease_names = set(diseases_cfg.keys())
+            
+            disease_label_ids = {
+                label_id
+                for label_id, name in self.object_labels.items()
+                if name in disease_names
+            }
 
             self.model = MaskRCNN(
                 num_classes=dataset.num_classes,
-                num_disease=dataset.num_disease_classes,
                 num_severity=dataset.num_severity_classes,
+                disease_label_ids=disease_label_ids,
                 weights_path=weights_path,
             ).to(self.device)
 

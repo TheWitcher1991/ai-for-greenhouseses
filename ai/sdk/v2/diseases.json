@@ -1,0 +1,38 @@
+{
+  "version": "2.0",
+
+  "diseases": {
+    "powdery_mildew": {
+      "display_name": "Мучнистая роса",
+      "severity": {
+        "type": "classification",
+        "classes": [0, 1, 2, 3, 4, 5, 6],
+        "description": "0 — нет поражения, 6 — сильное поражение"
+      }
+    },
+
+    "rust": {
+      "display_name": "Ржавчина",
+      "severity": {
+        "type": "classification",
+        "classes": [0, 1, 2, 3, 4, 5]
+      }
+    },
+
+    "blight": {
+      "display_name": "Фитофтороз",
+      "severity": {
+        "type": "classification",
+        "classes": [0, 1, 2, 3]
+      }
+    },
+
+    "downy_mildew": {
+      "display_name": "Ложная мучнистая роса",
+      "severity": {
+        "type": "classification",
+        "classes": [0, 1, 2, 3, 4]
+      }
+    }
+  }
+}
