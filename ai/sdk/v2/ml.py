@@ -124,13 +124,13 @@ class MLM(MLMv1):
             disease_idx = output["disease_pred"][idx].item()
             severity_idx = output["severity_pred"][idx].item()
 
-            predict: DetectionPrediction = {
-                "label": self.object_labels.get(label.item(), str(label.item())),
-                "disease": self.disease_labels.get(disease_idx, str(disease_idx)),
-                "severity": self.severity_labels.get(severity_idx, str(severity_idx)),
-                "confidence_percent": float(score.item() * 100),
-                "mask": mask[0].cpu().numpy(),
-            }
+            predict = DetectionPrediction(
+                label: self.object_labels.get(label.item(), str(label.item())),
+                disease: self.disease_labels.get(disease_idx, str(disease_idx)),
+                severity: self.severity_labels.get(severity_idx, str(severity_idx)),
+                confidence_percent: float(score.item() * 100),
+                mask: mask[0].cpu().numpy(),
+            )
 
             results.append(predict)
 

@@ -125,6 +125,16 @@ class MetricResult(Dict[str, float]):
     pass
 
 
+class ModelConfig(TypedDict):
+    architecture: str
+    num_classes: int
+    num_attr_classes: int
+    object_labels: List[str]
+    object_attrs: List[str]
+    weights_storage: str
+    weights_path: str
+
+
 class RegistryCredentials(TypedDict):
     host: str
     login: str

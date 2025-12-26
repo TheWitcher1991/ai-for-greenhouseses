@@ -4,6 +4,7 @@ from sdk.contracts import (
     BackboneConfig,
     DetectionPrediction,
     DetectionPredictions,
+    ModelConfig,
     SegmentationDatasetAdapter,
     TrainerAdapter,
 )
@@ -34,6 +35,7 @@ class MLM(TrainerAdapter):
         self.batch_size = batch_size
         self.lr = lr
         self.weights_path = weights_path
+        self.backbone_cfg = backbone_cfg
 
         self.metrics = MetricsRegistry()
 
@@ -119,15 +121,15 @@ class MLM(TrainerAdapter):
     def save(self, model_path="model.pth", labels_path="labels.json", metrics_path="metrics.json"):
         torch.save(self.model.state_dict(), model_path)
 
-        labels_dict = {
-            "architecture": "maskrcnn_resnet50_fpn",
-            "num_classes": len(self.object_labels),
-            "num_attr_classes": len(self.object_attrs),
-            "object_labels": self.object_labels,
-            "object_attrs": self.object_attrs,
-            "weights_storage": "local",
-            "weights_path": self.weights_path,
-        }
+        labels_dict = ModelConfig(
+            architecture=self.backbone_cfg.name,
+            num_classes=len(self.object_labels),
+            num_attr_classes=len(self.object_attrs),
+            object_labels=self.object_labels,
+            object_attrs=self.object_attrs,
+            weights_storage="local",
+            weights_path=self.weights_path,
+        )
 
         json_storage.save(labels_path, labels_dict)
 
@@ -136,7 +138,7 @@ class MLM(TrainerAdapter):
         logger.info(f"Модель сохранена: {model_path}, labels: {labels_path}")
 
     def load(self, model_path="model.pth", labels_path="labels.json"):
-        labels_dict = json_storage.load(labels_path)
+        labels_dict: ModelConfig = json_storage.load(labels_path)
 
         self.object_labels = labels_dict["object_labels"]
         self.object_attrs = labels_dict["object_attrs"]
@@ -166,15 +168,15 @@ class MLM(TrainerAdapter):
             if score < score_threshold:
                 continue
 
-            label_name = self.object_labels.get(int(label), str(label))
+            label_name = self.object_labels.get(label.item(), str(label.item()))
 
-            predict: DetectionPrediction = {
-                "label_id": int(label),
-                "label": label_name,
-                "score": float(score),
-                "confidence_percent": float(score.item() * 100),
-                "mask": mask[0].cpu().numpy(),
-            }
+            predict = DetectionPrediction(
+                label_id=int(label),
+                label=label_name,
+                score=float(score),
+                confidence_percent=float(score.item() * 100),
+                mask=mask[0].cpu().numpy(),
+            )
 
             results.append(predict)
 
