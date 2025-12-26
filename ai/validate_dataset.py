@@ -1,8 +1,8 @@
 from sdk.transforms import ComposeTransforms
-from sdk.v1.dataset import CocoSegmentationDataset
+from sdk.v2.dataset import CocoSegmentationDataset
 
 ds = CocoSegmentationDataset(
-    images_dir="data/images", annotation_file="data/annotations.json", transforms=ComposeTransforms()
+    images_dir="data/v2/images", annotation_file="data/v2/annotations.json", transforms=ComposeTransforms()
 )
 
 for i in range(len(ds)):

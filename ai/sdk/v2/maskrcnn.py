@@ -41,18 +41,12 @@ class MaskRCNN(nn.Module, DetectionModelAdapter):
             roi = self.model.roi_heads.box_roi_pool(features, [t["boxes"] for t in targets], images[0].shape[-2:])
             roi = self.model.roi_heads.box_head(roi)
 
-            disease_logits = self.disease_head(roi)
-            severity_logits = self.severity_head(roi)
+            sev_logits = self.severity_head(roi)
+            sev_gt = torch.cat([t["severity"] for t in targets])
 
-            disease_gt = torch.cat([t["disease"] for t in targets])
-            severity_gt = torch.cat([t["severity"] for t in targets])
-
-            loss_attr = nn.CrossEntropyLoss()(disease_logits, disease_gt) + nn.CrossEntropyLoss()(
-                severity_logits, severity_gt
+            losses["loss_severity"] = nn.CrossEntropyLoss()(
+                sev_logits, sev_gt
             )
-
-            losses["loss_attr"] = loss_attr
-
             return losses
 
         output = self.model(images)
@@ -67,13 +61,11 @@ class MaskRCNN(nn.Module, DetectionModelAdapter):
             roi = self.model.roi_heads.box_roi_pool(features, [o["boxes"] for o in output], images[0].shape[-2:])
             roi = self.model.roi_heads.box_head(roi)
 
-            disease = self.disease_head(roi).argmax(1)
             severity = self.severity_head(roi).argmax(1)
 
         idx = 0
         for o in output:
             n = len(o["boxes"])
-            o["disease"] = disease[idx : idx + n]
             o["severity"] = severity[idx : idx + n]
             idx += n
 

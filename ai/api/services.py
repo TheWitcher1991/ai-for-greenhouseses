@@ -16,7 +16,7 @@ class TrainerService:
         async def _run():
             try:
                 dataset = CocoSegmentationDataset(
-                    images_dir="data/images", annotation_file="data/annotations.json", transforms=ComposeTransforms()
+                    images_dir="data/v1/images", annotation_file="data/v1/annotations.json", transforms=ComposeTransforms()
                 )
 
                 trainer = MLM(

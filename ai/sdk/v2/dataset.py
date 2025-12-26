@@ -1,3 +1,4 @@
+import json
 import os
 
 import cv2
@@ -9,7 +10,13 @@ from sdk.contracts import DetectionTarget, SegmentationDatasetAdapter
 
 class CocoSegmentationDataset(SegmentationDatasetAdapter):
     def __init__(self, images_dir, annotation_file, transforms=None):
-        self.coco = COCO(annotation_file)
+        with open(annotation_file, "r", encoding="utf-8") as f:
+            coco_data = json.load(f)
+
+        self.coco = COCO.__new__(COCO)
+        self.coco.dataset = coco_data
+        self.coco.createIndex()
+
         self.images_dir = images_dir
         self.transforms = transforms
 
@@ -22,30 +29,24 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
         if len(self.image_ids) == 0:
             raise ValueError("Нет изображений с масками!")
 
-        category_ids = sorted([c["id"] for c in self.coco.cats.values()])
-        self.category_id_map = {cid: i + 1 for i, cid in enumerate(category_ids)}
+        categories = self.coco.loadCats(self.coco.getCatIds())
+        self.category_id_map = {c["id"]: i + 1 for i, c in enumerate(categories)}
+        self.class_names = {i + 1: c["name"] for i, c in enumerate(categories)}
         self.num_classes = len(self.category_id_map) + 1
 
-        disease_present = set()
-        severity_values = set()
+        disease_values = set()
 
-        for img_id in self.image_ids:
-            ann_ids = self.coco.getAnnIds(imgIds=img_id)
-            anns = self.coco.loadAnns(ann_ids)
+        for ann in self.coco.loadAnns(self.coco.getAnnIds()):
+            attrs = ann.get("attributes", {})
+            disease_values.add(1 if "disease" in attrs else 0)
 
-            for ann in anns:
-                attrs = ann.get("attributes", {})
-                if attrs:
-                    disease_present.add(1)
-                else:
-                    disease_present.add(0)
+        self.max_severity = 0
+        for ann in self.coco.loadAnns(self.coco.getAnnIds()):
+            sev = ann.get("attributes", {}).get("severity", 0)
+            self.max_severity = max(self.max_severity, int(sev))
 
-                for k in attrs:
-                    if "балл" in k:
-                        severity_values.add(int(k.split()[0]))
-
-        self.num_disease_classes = len(disease_present)
-        self.num_severity_classes = max(severity_values) + 1 if severity_values else 1
+        self.num_severity_classes = self.max_severity + 1
+        self.num_disease_classes = len(disease_values)
 
     def __len__(self):
         return len(self.image_ids)
@@ -64,8 +65,7 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
         ann_ids = self.coco.getAnnIds(imgIds=img_id)
         anns = self.coco.loadAnns(ann_ids)
 
-        boxes, labels, masks = [], [], []
-        disease_labels, severity_labels = [], []
+        boxes, labels, masks, severity, disease = [], [], [], [], []
 
         for ann in anns:
             mask = self.coco.annToMask(ann)
@@ -75,15 +75,12 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
             x, y, w, h = ann["bbox"]
             boxes.append([x, y, x + w, y + h])
 
-            cat = ann["category_id"]
-            labels.append(self.category_id_map[ann[cat]])
-            disease_labels.append(self.category_id_map.get(cat, 0))
+            labels.append(self.category_id_map[ann["category_id"]])
 
-            severity = 0
-            for k in ann.get("attributes", {}):
-                if "балл" in k:
-                    severity = int(k.split()[0])
-            severity_labels.append(severity)
+            attrs = ann.get("attributes", {})
+            
+            disease.append(1 if "Disease" in attrs else 0)
+            severity.append(int(attrs.get("severity", 0)))
 
             masks.append(mask)
 
@@ -94,8 +91,7 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
             "boxes": torch.tensor(boxes, dtype=torch.float32),
             "labels": torch.tensor(labels, dtype=torch.int64),
             "masks": torch.tensor(np.stack(masks), dtype=torch.float32),
-            "disease": torch.tensor(disease_labels, dtype=torch.int64),
-            "severity": torch.tensor(severity_labels, dtype=torch.int64),
+            "severity": torch.tensor(severity, dtype=torch.int64),
         }
 
         if self.transforms:
