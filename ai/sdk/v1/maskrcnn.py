@@ -2,28 +2,32 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
-from sdk.contracts import DetectionModelAdapter
+from sdk.backbone import BackboneBuilder
+from sdk.contracts import BackboneConfig, DetectionModelAdapter
 from sdk.logger import logger
-from torchvision.models.detection import maskrcnn_resnet50_fpn
+from torchvision.models.detection import MaskRCNN as MaskRCNNDetection
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
 
 class MaskRCNN(nn.Module, DetectionModelAdapter):
-    def __init__(self, num_classes: int, num_attr_classes: int, weights_path: str = None):
+    def __init__(self, num_classes: int, num_attr_classes: int, backbone_cfg: BackboneConfig, weights_path: str = None):
         super().__init__()
 
         logger.info(f"Инициализация MaskRCNN | " f"classes={num_classes}, attr_classes={num_attr_classes}")
 
+        backbone = BackboneBuilder.build(backbone_cfg)
+
+        self.model = MaskRCNNDetection(
+            backbone=backbone,
+            num_classes=num_classes,
+        )
+
         if weights_path and Path(weights_path).exists():
             logger.info(f"Загрузка весов из файла: {weights_path}")
-            self.model = maskrcnn_resnet50_fpn(weights=None)
             checkpoint = torch.load(weights_path)
             self.model.load_state_dict(checkpoint)
             logger.info("Веса успешно загружены")
-        else:
-            logger.info("Используются DEFAULT веса torchvision")
-            self.model = maskrcnn_resnet50_fpn(weights="DEFAULT")
 
         in_features = self.model.roi_heads.box_predictor.cls_score.in_features
         self.model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)

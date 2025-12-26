@@ -11,7 +11,7 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
     """
     :TODO: Еще в процессе разработки
     """
-    
+
     def __init__(self, images_dir, annotation_file, transforms=None):
         self.coco = COCO(annotation_file)
         self.images_dir = images_dir
@@ -63,7 +63,7 @@ class CocoSegmentationDataset(SegmentationDatasetAdapter):
 
             x, y, w, h = ann["bbox"]
             boxes.append([x, y, x + w, y + h])
-            
+
             labels.append(self.category_id_map[ann["category_id"]])
 
             attrs = ann.get("attributes", {})

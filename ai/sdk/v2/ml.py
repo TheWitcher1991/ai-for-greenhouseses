@@ -14,8 +14,8 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 class MLM(MLMv1):
     """
     :TODO: Еще в процессе разработки
-    """    
-    
+    """
+
     def __init__(
         self,
         dataset: SegmentationDatasetAdapter = None,
@@ -47,16 +47,12 @@ class MLM(MLMv1):
                 f"Датасет загружен: {len(dataset)} изображений, "
                 f"classes={dataset.num_classes}, num_disease_classes={dataset.num_disease_classes}, num_severity_classes={dataset.num_severity_classes}"
             )
-            
+
             diseases_cfg = json_storage.load("diseases.json")["diseases"]
-            
+
             disease_names = set(diseases_cfg.keys())
-            
-            disease_label_ids = {
-                label_id
-                for label_id, name in self.object_labels.items()
-                if name in disease_names
-            }
+
+            disease_label_ids = {label_id for label_id, name in self.object_labels.items() if name in disease_names}
 
             self.model = MaskRCNN(
                 num_classes=dataset.num_classes,

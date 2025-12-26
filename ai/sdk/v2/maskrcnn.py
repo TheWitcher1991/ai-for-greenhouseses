@@ -12,7 +12,7 @@ class MaskRCNN(nn.Module, DetectionModelAdapter):
     """
     :TODO: Еще в процессе разработки
     """
-    
+
     def __init__(
         self,
         num_classes: int,
@@ -21,9 +21,9 @@ class MaskRCNN(nn.Module, DetectionModelAdapter):
         weights_path: str = None,
     ):
         super().__init__()
-        
-        self.disease_label_ids = disease_label_ids        
-        
+
+        self.disease_label_ids = disease_label_ids
+
         self.model = maskrcnn_resnet50_fpn(weights="DEFAULT")
 
         if weights_path and Path(weights_path).exists():
@@ -53,19 +53,16 @@ class MaskRCNN(nn.Module, DetectionModelAdapter):
             roi = self.model.roi_heads.box_head(roi)
 
             sev_logits = self.severity_head(roi)
-            
+
             labels = torch.cat([t["labels"] for t in targets])
             sev_gt = torch.cat([t["severity"] for t in targets])
-            
+
             disease_mask = torch.zeros_like(labels, dtype=torch.bool)
             for d in self.disease_label_ids:
                 disease_mask |= labels == d
 
             if disease_mask.any():
-                losses["loss_severity"] = nn.CrossEntropyLoss()(
-                    sev_logits[disease_mask],
-                    sev_gt[disease_mask]
-                )
+                losses["loss_severity"] = nn.CrossEntropyLoss()(sev_logits[disease_mask], sev_gt[disease_mask])
 
             return losses
 
@@ -95,4 +92,4 @@ class MaskRCNN(nn.Module, DetectionModelAdapter):
             o["severity"] = torch.stack(sev)
             idx += n
 
-        return output   
+        return output

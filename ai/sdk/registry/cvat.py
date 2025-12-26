@@ -3,8 +3,10 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
+from typing import List
 
 from cvat_sdk import make_client
+from cvat_sdk.core.proxies.tasks import Task
 from sdk.contracts import RegistryAdapter, RegistryCredentials
 from sdk.logger import logger
 
@@ -24,15 +26,15 @@ class CvatRegistry(RegistryAdapter):
         self.category_id_counter = 1
         self.image_file_counter = 0
 
-        self.client = make_client(host=self.host, credentials=(credentials.login, credentials.password))
+        self.client = make_client(host=self.host, credentials=(credentials.get("login"), credentials.get("password")))
 
-    def find_annotations(self):
+    def find_annotations(self) -> List[Task]:
         return self.client.tasks.list()
 
-    def find_annotation(self, annotation_id: int):
+    def find_annotation(self, annotation_id: int) -> Task:
         return self.client.tasks.retrieve(annotation_id)
 
-    def save_annotations(self):
+    def save_annotations(self) -> None:
         annotations = self.find_annotations()
 
         annotation_ids = [annotation.id for annotation in annotations]

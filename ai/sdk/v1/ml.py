@@ -1,6 +1,12 @@
 import cv2
 import torch
-from sdk.contracts import DetectionPrediction, DetectionPredictions, SegmentationDatasetAdapter, TrainerAdapter
+from sdk.contracts import (
+    BackboneConfig,
+    DetectionPrediction,
+    DetectionPredictions,
+    SegmentationDatasetAdapter,
+    TrainerAdapter,
+)
 from sdk.logger import logger
 from sdk.registry.metrics import MetricsRegistry
 from sdk.storage import json_storage
@@ -15,6 +21,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 class MLM(TrainerAdapter):
     def __init__(
         self,
+        backbone_cfg: BackboneConfig,
         dataset: SegmentationDatasetAdapter = None,
         device: str = DEVICE,
         epochs: int = 10,
@@ -50,6 +57,7 @@ class MLM(TrainerAdapter):
             self.model = MaskRCNN(
                 num_classes=dataset.num_classes,
                 num_attr_classes=dataset.num_attr_classes,
+                backbone_cfg=backbone_cfg,
                 weights_path=weights_path,
             ).to(self.device)
 

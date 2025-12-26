@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import StrEnum, auto
-from typing import Any, Dict, Iterable, List, Optional, Tuple, TypedDict, Union
+from typing import Any, Dict, Iterable, List, Optional, Protocol, Tuple, TypedDict, Union
 
 import numpy as np
 import torch
+import torch.nn as nn
 from torch.utils.data import Dataset
 
 ImageTensor = torch.Tensor
@@ -21,6 +23,34 @@ DetectionPredictions = List[DetectionPrediction]
 class StorageType(StrEnum):
     json = auto()
     pg = auto()
+
+
+class BackboneType(StrEnum):
+    resnet50 = auto()
+    resnet101 = auto()
+    resnet152 = auto()
+    # efficientnet_b3 = auto()
+    # efficientnet_b4 = auto()
+    # convnext = auto()
+
+
+@dataclass
+class BackboneConfig:
+    name: BackboneType
+    pretrained: bool = True
+
+
+class BackboneSpec(Protocol):
+    backbone: nn.Module
+    out_channels: int
+
+
+class BackboneAdapter(ABC):
+    out_channels: int
+
+    @abstractmethod
+    def build(self, cfg: BackboneConfig) -> nn.Module:
+        pass
 
 
 class SegmentationDatasetAdapter(
