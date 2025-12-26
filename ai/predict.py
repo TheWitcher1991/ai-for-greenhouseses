@@ -1,7 +1,10 @@
+from sdk.contracts import BackboneConfig, BackboneType
 from sdk.v1.ml import MLM
 
-mlm = MLM()
+backbone_cfg = BackboneConfig(name=BackboneType.resnet50, pretrained=True)
 
-mlm.load()
+predictor = MLM(backbone_cfg=backbone_cfg)
 
-mlm.predict("data/test.jpg")
+predictor.load()
+
+predictor.predict("data/test.jpg")

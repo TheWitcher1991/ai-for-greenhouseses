@@ -12,4 +12,5 @@ backbone_cfg = BackboneConfig(name=BackboneType.resnet50, pretrained=True)
 trainer = MLM(dataset=dataset, backbone_cfg=backbone_cfg)
 
 trainer.train()
+
 trainer.save()

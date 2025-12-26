@@ -129,6 +129,8 @@ class RegistryCredentials(TypedDict):
     host: str
     login: str
     password: str
+    output_annotations: str
+    output_images: str
 
 
 class RegistryAdapter(ABC):

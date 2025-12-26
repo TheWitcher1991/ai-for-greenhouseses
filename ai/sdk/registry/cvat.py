@@ -13,11 +13,11 @@ from sdk.logger import logger
 
 class CvatRegistry(RegistryAdapter):
 
-    def __init__(self, credentials: RegistryCredentials) -> None:
+    def __init__(self, credentials: RegistryCredentials):
         self.host = credentials.get("host", "cvat.stgau.ru")
-        self.output_file = "cvat/annotations.json"
-        self.output_images = Path("cvat/images")
-        self.output_images.mkdir(exist_ok=True)
+        self.output_file = credentials.get("output_annotations", "data/annotations.json")
+        self.output_images = Path(credentials.get("output_images", "data/images"))
+        self.output_images.mkdir(parents=True, exist_ok=True)
 
         self.merged_coco = {"images": [], "annotations": [], "categories": []}
         self.image_id_offset = 0
@@ -41,7 +41,7 @@ class CvatRegistry(RegistryAdapter):
 
         for annotation_id in annotation_ids:
             annotation = self.find_annotation(annotation_id)
-            temp_zip_path = f"annotation_{annotation}.zip"
+            temp_zip_path = f"annotation_{annotation.id}.zip"
             annotation.export_dataset(format_name="COCO 1.0", filename=temp_zip_path)
 
             with zipfile.ZipFile(temp_zip_path, "r") as zip_ref:
