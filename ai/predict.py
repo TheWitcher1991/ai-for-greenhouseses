@@ -1,5 +1,5 @@
 from sdk.contracts import BackboneConfig, BackboneType
-from sdk.v1.ml import MLM
+from sdk.models.v1.ml import MLM
 
 backbone_cfg = BackboneConfig(name=BackboneType.resnet50, pretrained=True)
 

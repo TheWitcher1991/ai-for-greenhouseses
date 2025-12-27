@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum, auto
 from typing import Any, Dict, Iterable, List, Optional, Protocol, Tuple, TypedDict, Union
 
@@ -38,6 +38,28 @@ class BackboneType(StrEnum):
 class BackboneConfig:
     name: BackboneType
     pretrained: bool = True
+
+
+@dataclass
+class ModelConfig:
+    architecture: str
+    num_classes: int
+    num_attr_classes: int
+    object_labels: List[str]
+    object_attrs: List[str]
+    weights_storage: str
+    weights_path: str = None
+
+
+@dataclass
+class TrainerState:
+    epoch: int = 0
+    step: int = 0
+    global_step: int = 0
+    lr: float = 0.0
+    batch_loss: float = 0.0
+    epoch_loss: float = 0.0
+    metrics: Dict[str, Any] = field(default_factory=dict)
 
 
 class BackboneSpec(Protocol):
@@ -125,16 +147,6 @@ class MetricResult(Dict[str, float]):
     pass
 
 
-class ModelConfig(TypedDict):
-    architecture: str
-    num_classes: int
-    num_attr_classes: int
-    object_labels: List[str]
-    object_attrs: List[str]
-    weights_storage: str
-    weights_path: str
-
-
 class RegistryCredentials(TypedDict):
     host: str
     login: str
@@ -166,3 +178,23 @@ class MetricAdapter(ABC):
 
     @abstractmethod
     def compute(self) -> Dict: ...
+
+
+class HookAdapter(ABC):
+    @abstractmethod
+    def on_train_start(self, state: TrainerState): ...
+
+    @abstractmethod
+    def on_epoch_start(self, state: TrainerState): ...
+
+    @abstractmethod
+    def on_batch_start(self, state: TrainerState): ...
+
+    @abstractmethod
+    def on_batch_end(self, state: TrainerState): ...
+
+    @abstractmethod
+    def on_epoch_end(self, state: TrainerState): ...
+
+    @abstractmethod
+    def on_train_end(self, state: TrainerState): ...

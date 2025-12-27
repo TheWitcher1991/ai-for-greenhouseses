@@ -1,9 +1,12 @@
+from typing import Optional
+
 import cv2
 import torch
 from sdk.contracts import (
     BackboneConfig,
     DetectionPrediction,
     DetectionPredictions,
+    ImageTensor,
     ModelConfig,
     SegmentationDatasetAdapter,
     TrainerAdapter,
@@ -42,31 +45,46 @@ class MLM(TrainerAdapter):
         logger.info(f"Устройство: {self.device}")
         logger.info(f"Эпохи={epochs}, batch_size={batch_size}, lr={lr}")
 
-        if dataset:
-            self.loader = DataLoader(
-                dataset, batch_size=self.batch_size, shuffle=True, collate_fn=lambda x: tuple(zip(*x))
-            )
+        self.model: Optional[MaskRCNN] = None
+        self.optimizer: Optional[torch.optim.Optimizer] = None
 
-            self.category_id_to_name_en = dataset.category_id_to_name_en
-            self.object_labels = {i: self.category_id_to_name_en[cid] for cid, i in dataset.category_id_map.items()}
-            self.object_attrs = {i: str(i) for i in range(dataset.num_attr_classes)}
+        self.use_amp = self.device == "cuda"
+        self.scaler = torch.amp.GradScaler(enabled=self.use_amp)
 
-            logger.info(
-                f"Датасет загружен: {len(dataset)} изображений, "
-                f"classes={dataset.num_classes}, attr_classes={dataset.num_attr_classes}"
-            )
+        if dataset is not None:
+            self._init_from_dataset(dataset)
 
-            self.model = MaskRCNN(
-                num_classes=dataset.num_classes,
-                num_attr_classes=dataset.num_attr_classes,
-                backbone_cfg=backbone_cfg,
-                weights_path=weights_path,
-            ).to(self.device)
+    def _init_from_dataset(self, dataset: SegmentationDatasetAdapter) -> None:
+        self.loader = DataLoader(
+            dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            collate_fn=lambda x: tuple(zip(*x)),
+        )
 
-            self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
-            self.scaler = torch.amp.GradScaler(device=self.device)
+        self.category_id_to_name_en = dataset.category_id_to_name_en
+        self.object_labels = {i: self.category_id_to_name_en[cid] for cid, i in dataset.category_id_map.items()}
+        self.object_attrs = {i: str(i) for i in range(dataset.num_attr_classes)}
+
+        logger.info(
+            f"Dataset: {len(dataset)} images | "
+            f"classes={dataset.num_classes} | "
+            f"attr_classes={dataset.num_attr_classes}"
+        )
+
+        self.model = MaskRCNN(
+            num_classes=dataset.num_classes,
+            num_attr_classes=dataset.num_attr_classes,
+            backbone_cfg=self.backbone_cfg,
+            weights_path=self.weights_path,
+        ).to(self.device)
+
+        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
 
     def train(self):
+        if self.model is None or self.optimizer is None:
+            raise RuntimeError("Trainer is not initialized with dataset/model")
+
         logger.info("Начало обучения")
 
         for epoch in range(self.epochs):
@@ -88,9 +106,10 @@ class MLM(TrainerAdapter):
                     logger.error(f"Ошибка переноса данных на device: {e}")
                     continue
 
-                self.optimizer.zero_grad()
+                self.optimizer.zero_grad(set_to_none=True)
+
                 try:
-                    with torch.amp.autocast(device_type=self.device):
+                    with torch.amp.autocast(enabled=self.use_amp):
                         losses = self.model(images, targets)
                         loss = sum(losses.values())
 
@@ -106,9 +125,11 @@ class MLM(TrainerAdapter):
 
                 epoch_loss += loss.item()
 
+                self.model.eval()
                 with torch.no_grad():
                     preds = self.model(images)
                     self.metrics.update(preds, targets)
+                self.model.train()
 
                 logger.info(f"Батч {step + 1} завершен, накопленный loss эпохи: {epoch_loss:.4f}")
 
@@ -146,38 +167,49 @@ class MLM(TrainerAdapter):
         self.model = MaskRCNN(
             num_classes=len(self.object_labels),
             num_attr_classes=len(self.object_attrs),
+            backbone_cfg=self.backbone_cfg,
         )
 
-        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        state = torch.load(model_path, map_location=self.device)
+        self.model.load_state_dict(state)
         self.model.to(self.device)
         self.model.eval()
 
         logger.info(f"Модель загружена: {model_path}")
 
     def predict(self, image_path, score_threshold=0.5):
-        img = cv2.imread(image_path)
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        tensor = torch.tensor(img_rgb / 255.0, dtype=torch.float32).permute(2, 0, 1)
-        tensor = tensor.unsqueeze(0).to(DEVICE)
+        if self.model is None:
+            raise RuntimeError("Model is not loaded")
 
+        img = cv2.imread(image_path)
+        if img is None:
+            raise ValueError(f"Image not found: {image_path}")
+
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        tensor: ImageTensor = (
+            torch.tensor(img_rgb / 255.0, dtype=torch.float32).permute(2, 0, 1).unsqueeze(0).to(self.device)
+        )
+
+        self.model.eval()
         with torch.no_grad():
             output = self.model(tensor)[0]
 
         results: DetectionPredictions = []
         for score, label, mask in zip(output["scores"], output["labels"], output["masks"]):
-            if score < score_threshold:
+            if score.item() < score_threshold:
                 continue
 
-            label_name = self.object_labels.get(label.item(), str(label.item()))
+            label_id = int(label.item())
+            label_name = self.object_labels.get(label_id, str(label_id))
 
-            predict = DetectionPrediction(
-                label_id=int(label),
-                label=label_name,
-                score=float(score),
-                confidence_percent=float(score.item() * 100),
-                mask=mask[0].cpu().numpy(),
+            results.append(
+                DetectionPrediction(
+                    label_id=label_id,
+                    label=label_name,
+                    score=float(score.item()),
+                    confidence_percent=float(score.item() * 100),
+                    mask=mask[0].cpu(),
+                )
             )
-
-            results.append(predict)
 
         return results

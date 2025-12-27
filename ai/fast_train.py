@@ -1,14 +1,15 @@
 import torch
 from sdk.backbone import BackboneBuilder
 from sdk.contracts import BackboneConfig, BackboneType
+from sdk.models.v1.dataset.coco import CocoSegmentationDataset
 from sdk.transforms import ComposeTransforms
-from sdk.v1.dataset.coco import CocoSegmentationDataset
 from torch.utils.data import DataLoader
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNN, MaskRCNNPredictor
 from tqdm import tqdm
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+USE_AMP = DEVICE == "cuda"
 EPOCHS = 1
 
 dataset = CocoSegmentationDataset(
@@ -37,7 +38,7 @@ model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, 256, num_cl
 model.to(DEVICE)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
-scaler = torch.amp.GradScaler(device=DEVICE)
+scaler = torch.amp.GradScaler(enabled=USE_AMP)
 
 for epoch in range(EPOCHS):
     model.train()
