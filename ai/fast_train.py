@@ -1,8 +1,8 @@
 import torch
-from sdk.backbone import BackboneBuilder
-from sdk.contracts import BackboneConfig, BackboneType
-from sdk.models.v1.dataset.coco import CocoSegmentationDataset
-from sdk.transforms import ComposeTransforms
+from framework.backbone import BackboneBuilder
+from framework.contracts import BackboneConfig, BackboneType
+from framework.detection.v1.dataset.coco import CocoSegmentationDataset
+from framework.transforms import ComposeTransforms
 from torch.utils.data import DataLoader
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNN, MaskRCNNPredictor

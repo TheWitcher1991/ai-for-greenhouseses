@@ -3,10 +3,10 @@ from threading import Thread
 from typing import Dict
 
 from fastapi import UploadFile
-from sdk.logger import logger
-from sdk.transforms import ComposeTransforms
-from sdk.models.v1.dataset.coco import CocoSegmentationDataset
-from sdk.models.v1.ml import MLM
+from framework.detection.v1.dataset.coco import CocoSegmentationDataset
+from framework.detection.v1.ml import MLM
+from framework.logger import logger
+from framework.transforms import ComposeTransforms
 
 
 class TrainerService:

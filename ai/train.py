@@ -1,7 +1,7 @@
-from sdk.contracts import BackboneConfig, BackboneType
-from sdk.models.v1.dataset.coco import CocoSegmentationDataset
-from sdk.models.v1.ml import MLM
-from sdk.transforms import ComposeTransforms
+from framework.contracts import BackboneConfig, BackboneType
+from framework.detection.v1.dataset.coco import CocoSegmentationDataset
+from framework.detection.v1.ml import MLM
+from framework.transforms import ComposeTransforms
 
 dataset = CocoSegmentationDataset(
     images_dir="data/v1/images", annotation_file="data/v1/annotations.json", transforms=ComposeTransforms()
